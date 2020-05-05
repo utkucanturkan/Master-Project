@@ -3,13 +3,13 @@
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.neo4j.example</groupId>
-  <artifactId>procedure-template</artifactId>
+  <groupId>org.neo4j.masterproject</groupId>
+  <artifactId>master-project</artifactId>
   <version>1.0.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j Procedure Template</name>
-  <description>A template project for building a Neo4j Procedure</description>
+  <name>Master Project Neo4j Implementation</name>
+  <description>The project contains procedure implementations about Route Skyline Queries: A Multi-Preference Path Planning Approach</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
