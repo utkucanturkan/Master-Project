@@ -1,6 +1,5 @@
 package project;
 
-import org.neo4j.cypher.internal.compiler.v2_3.No;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.WeightedPath;
@@ -9,19 +8,21 @@ import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 public class BRSC {
-
-    private Relationship relationship;
-    private String[] propertyKeys;
-    private Node startNode;
-    private Node destinationNode;
+    private static Relationship relationship;
+    private static List<String> propertyKeys;
+    private static Node startNode;
+    private static Node destinationNode;
 
     // This field declares that we need a GraphDatabaseService
     // as context when any procedure in this class is invoked
+    // Injectable Resource
     @Context
     public GraphDatabaseService db;
 
@@ -30,6 +31,7 @@ public class BRSC {
     @Context
     public Log log;
 
+    // DEFINITION 2
     private double cost(Path path, String propertyKey) {
         double cost = 0d;
         for (Relationship e : path.relationships()) {
@@ -39,6 +41,7 @@ public class BRSC {
         return cost;
     }
 
+    // DEFINITION 3
     private double preferenceFunction(Path path) {
         double result = 0d;
         for (String properyKey : propertyKeys) {
@@ -48,6 +51,7 @@ public class BRSC {
         return result;
     }
 
+    // DEFINITION 7
     private boolean isDominatedBy(Path lhsPath, Path rhsPath) {
         int dominatedWeightCount = 0;
         for (String propertyKey : propertyKeys) {
@@ -55,7 +59,7 @@ public class BRSC {
                 dominatedWeightCount++;
             }
         }
-        return dominatedWeightCount == propertyKeys.length;
+        return dominatedWeightCount == propertyKeys.size();
     }
 
     private boolean doesDominate(Path path, Vector<Double> vector) {
@@ -66,7 +70,7 @@ public class BRSC {
             }
             index++;
         }
-        return dominatedWeightCount == propertyKeys.length;
+        return dominatedWeightCount == propertyKeys.size();
     }
 
     private Vector<Double> attr(Path path) {
@@ -79,7 +83,7 @@ public class BRSC {
 
     private Vector<Double> lb(Path path) {
         Vector<Double> lb = new Vector<>();
-        for (int propertyIndex = 0; propertyIndex < propertyKeys.length; propertyIndex++) {
+        for (int propertyIndex = 0; propertyIndex < propertyKeys.size(); propertyIndex++) {
             lb.add(propertyIndex, attr(path).get(propertyIndex) + networkDistanceEstimation(startNode, destinationNode));
         }
         return lb;
@@ -121,7 +125,6 @@ public class BRSC {
         return networkDistances;
     }
 
-    // TODO: Implement expand function
     private List<Path> expand(Path path) {
         List<Path> expandedPaths = new LinkedList<>();
         for(Relationship r: (Iterable<Relationship>)PathExpanders.forDirection(Direction.OUTGOING).expand(path, BranchState.NO_STATE)) {
@@ -176,7 +179,6 @@ public class BRSC {
         return expandedPaths;
     }
 
-    // TODO: Implement hasCycle function
     private boolean hasCycle(Path path) {
         for (Relationship lhsRelationShip : path.relationships()) {
             for (Relationship rhsRelationShip : path.relationships()) {
@@ -189,14 +191,7 @@ public class BRSC {
         return false;
     }
 
-
-    /*  Example Neo4j Query
-
-        MATCH(startNode:Node{name:"n0"}), (destinationNode:Node{name:"n5"})
-        CALL dbis.BRSC(startNode, destinationNode, ["length", "cost"])
-     */
-
-    private boolean hasAllKeys(Relationship relationship, String[] propertyKeys) {
+    private boolean hasAllKeys(Relationship relationship, List<String> propertyKeys) {
         for (String propertyKey : propertyKeys) {
             if (!relationship.hasProperty(propertyKey)) {
                 return false;
@@ -205,10 +200,21 @@ public class BRSC {
         return true;
     }
 
+    private void reportSkylineRoutes(List<Path> skylineRoutes) {
+        for (Path route: skylineRoutes) {
+            System.out.println(route.toString());
+            for (String propertyKey: propertyKeys) {
+                System.out.println(cost(route, propertyKey));
+            }
+        }
+    }
 
-    @Procedure(value = "dbis.BRSC")
+    @Procedure(value = "dbis.BRSC", name = "dbis.BRSC")
     @Description("Basic Route Skyline Computation from specified start node to destination node regarding to the relationship property keys")
-    public void BRSC(Node start, Node destination, Relationship relationship, String[] relationshipPropertyKeys) {
+    public Stream<Path> BRSC(@Name("start") Node start,
+                             @Name("destination") Node destination,
+                             @Name("relationship") Relationship relationship,
+                             @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
         if (hasAllKeys(relationship, relationshipPropertyKeys)) {
             this.relationship = relationship;
             this.propertyKeys = relationshipPropertyKeys;
@@ -321,9 +327,11 @@ public class BRSC {
                     }
                 }
             }
-            // TODO: Implement reportSkylineRoutes(skylineRoutes) function
+            //reportSkylineRoutes(skylineRoutes);
+            return skylineRoutes.stream();
         } else {
-            // TODO: throw an error
+            log.debug("The Relationship does not contain the specified all property keys.");
         }
+        return null;
     }
 }
