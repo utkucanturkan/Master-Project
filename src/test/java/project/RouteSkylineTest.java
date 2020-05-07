@@ -27,17 +27,21 @@ public class RouteSkylineTest {
 
     @Test
     public void findRouteSkylinesByBRSC() {
-
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
+
+            // Seed the graph 6-nodes, 20-relationships with length and cost attributes
             session.run(seedQuery);
 
-            StatementResult result = session.run("MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
-                    "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
+            StatementResult result = session.run(
+                    "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
+                    "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;"
+            );
 
             assertThat(result.stream().count()).isEqualTo(3);
         }
-
     }
+
+
     /*
     @Test
     public void findRouteSkylinesByARSC() {
