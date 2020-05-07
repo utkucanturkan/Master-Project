@@ -10,7 +10,7 @@ import org.neo4j.harness.TestServerBuilders;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class BRSCTest {
+public class RouteSkylineTest {
     private static final Config driverConfig = Config.build().withoutEncryption().toConfig();
     private ServerControls embeddedDatabaseServer;
 
@@ -21,21 +21,36 @@ public class BRSCTest {
     void initializeNeo4j() {
         this.embeddedDatabaseServer = TestServerBuilders
                 .newInProcessBuilder()
-                .withProcedure(BRSC.class)
+                .withProcedure(RouteSkyline.class)
                 .newServer();
     }
 
     @Test
     public void findRouteSkylinesByBRSC() {
-        /*
+
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
-            //session.run(seedQuery);
+            session.run(seedQuery);
 
             StatementResult result = session.run("MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
-                    "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) as paths");
+                    "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
 
             assertThat(result.stream().count()).isEqualTo(3);
         }
-        */
+
     }
+    /*
+    @Test
+    public void findRouteSkylinesByARSC() {
+
+        try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
+            session.run(seedQuery);
+
+            StatementResult result = session.run("MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
+                    "CALL dbis.ARSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
+
+            assertThat(result.stream().count()).isEqualTo(3);
+        }
+
+    }
+     */
 }
