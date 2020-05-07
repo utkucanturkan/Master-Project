@@ -202,11 +202,15 @@ public class RouteSkyline {
         return false;
     }
 
-    private Iterable<WeightedPath> subRouteSkyline(Node node, String propertyKey) {
-        // startNode, destinationNode
-        // TODO:
-        PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.OUTGOING), propertyKey);
-        return finder.findAllPaths(startNode, node);
+    private List<Path> subRouteSkyline(Node node) {
+        List<Path> paths = new LinkedList<>();
+        // TODO: correct maximum depth of the path
+        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.OUTGOING), Integer.MAX_VALUE);
+        for (Path p: finder.findAllPaths(startNode, node)) {
+            paths.add(p);
+            // TODO: control whether the path is dominated by any another path
+        }
+        return paths;
     }
 
     private boolean hasAllKeys(Relationship relationship, List<String> propertyKeys) {
@@ -344,7 +348,7 @@ public class RouteSkyline {
         return null;
         */
     }
-/*
+
     @Procedure(value = "dbis.ARSC", name = "dbis.ARSC")
     @Description("Advanced Route Skyline Computation from specified start node to destination node regarding to the relationship property keys")
     public Stream<SkylineRoute> ARSC(@Name("start") Node start,
@@ -377,16 +381,19 @@ public class RouteSkyline {
                 for (Path route : skylineRoutes) {
                     if (doesDominate(route, pLb)) {
                         plb_isDominated = true;
+                        // TODO: store as a key(Node)-value(List<Path>) list subrouteSkylines for each node
                         subRouteSkyline(nI).remove(p);
                         subRouteSkylineIndex--;
                         break;
                     }
                 }
-                if (!plb_isDominated && !p.isProcessed()) {             // if sub-route is not processed yet
-                    List<Path> vecPath = expand(p);                    // expand actual path p by one hop (in each direction)
+                // TODO: Implement isProcessed() and setProcessed() methods
+                // TODO: store as a key(Path)-value(boolean) list processed information for each path
+                if (!plb_isDominated && !p.isProcessed()) {                 // if sub-route is not processed yet
+                    List<Path> vecPath = expand(p);                         // expand actual path p by one hop (in each direction)
                     for (Path pPrime : vecPath) {
-                        pPrime.setProcessed(true);                      // mark sub-route pPrime as processed
-                        if (pPrime.endNode().equals(destinationNode)) {         // route completed
+                        pPrime.setProcessed(true);                          // mark sub-route pPrime as processed
+                        if (pPrime.endNode().equals(destinationNode)) {     // route completed
                             boolean pPrime_isDominated = false;
                             for (Path route : skylineRoutes) {
                                 if (isDominatedBy(pPrime, route)) {
@@ -415,10 +422,14 @@ public class RouteSkyline {
                                 }
                             }
                             if (!pPrime_isDominated) {
+
+                                // TODO: store as a list subrouteSkylines for each node
                                 subRouteSkyline(vNext).add(pPrime);
                                 for (int vNextSubRouteSkylineIndex = 0; vNextSubRouteSkylineIndex < subRouteSkyline(vNext).size(); vNextSubRouteSkylineIndex++) {
                                     Path route = subRouteSkyline(vNext).get(vNextSubRouteSkylineIndex);
                                     if (isDominatedBy(route, pPrime)) {
+
+                                        // TODO: store as a list subrouteSkylines for each node
                                         subRouteSkyline(vNext).remove(route);
                                         vNextSubRouteSkylineIndex--;
                                     }
@@ -433,7 +444,8 @@ public class RouteSkyline {
         }
         return skylineRoutes.stream().map(SkylineRoute::new);
     }
-*/
+
+
     public static class SkylineRoute {
         public String route;
 
