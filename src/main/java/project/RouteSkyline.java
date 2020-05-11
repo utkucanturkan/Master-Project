@@ -103,7 +103,7 @@ public class RouteSkyline {
                 if (sourceEntry.getKey() == targetEntry.getKey()) {
                     // subtraction from source to target distance and take absolute of it
                     // if sourceDistance or targetDistance equals 0, set the network estimation distance 0
-                    results.add((sourceEntry.getValue() == 0 || targetEntry.getValue() == 0) ? Math.abs(sourceEntry.getValue() - targetEntry.getValue()) : 0);
+                    results.add(Math.abs(sourceEntry.getValue() - targetEntry.getValue()));
                     break;
                 }
             }
@@ -401,10 +401,6 @@ public class RouteSkyline {
                 }
             }
         }
-        skylineRoutes.forEach(route -> {
-            System.out.println("Route" + route.toString());
-            System.out.println();
-        });
         return skylineRoutes.stream().map(SkylineRoute::new);
             /*
         } else {
