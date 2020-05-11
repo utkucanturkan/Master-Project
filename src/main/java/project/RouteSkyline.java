@@ -1,5 +1,7 @@
 package project;
 
+import org.neo4j.cypher.internal.compiler.v2_3.No;
+import org.neo4j.cypher.internal.frontend.v3_4.phases.Do;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.WeightedPath;
@@ -12,6 +14,7 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.util.*;
+import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.stream.Stream;
 
 public class RouteSkyline {
@@ -88,11 +91,11 @@ public class RouteSkyline {
         return lb;
     }
 
-    // DEFINITION 5
+    // DEFINITION 5 - Dl(Vs, Vt) =  i=1...k max| FiV',l(Vs) - FiV',l(Vt) |
     private double networkDistanceEstimation(Node source, Node target, String propertyKey) {
         // Stores distances from node to another nodes in the graph ? (reference nodes)
-        Map<Long, Double> distancesFromSource = networkDistance(source, propertyKey);
-        Map<Long, Double> distancesFromTarget = networkDistance(target, propertyKey);
+        Map<Long, Double> distancesFromSource = getNetworkDistance(source, propertyKey);
+        Map<Long, Double> distancesFromTarget = getNetworkDistance(target, propertyKey);
         Vector<Double> results = new Vector<>();
         for (Map.Entry<Long, Double> sourceEntry : distancesFromSource.entrySet()) {
             for (Map.Entry<Long, Double> targetEntry : distancesFromTarget.entrySet()) {
@@ -100,8 +103,7 @@ public class RouteSkyline {
                 if (sourceEntry.getKey() == targetEntry.getKey()) {
                     // subtraction from source to target distance and take absolute of it
                     // if sourceDistance or targetDistance equals 0, set the network estimation distance 0
-                    results.add((sourceEntry.getValue() == 0 || targetEntry.getValue() == 0)
-                            ? Math.abs(sourceEntry.getValue() - targetEntry.getValue()) : 0);
+                    results.add((sourceEntry.getValue() == 0 || targetEntry.getValue() == 0) ? Math.abs(sourceEntry.getValue() - targetEntry.getValue()) : 0);
                     break;
                 }
             }
@@ -110,17 +112,36 @@ public class RouteSkyline {
         return Collections.max(results);
     }
 
-    private Map<Long, Double> networkDistance(Node node, String propertyKey) {
+    private static Map<Long, Map<String, Map<Long, Double>>> distanceEstimations = new HashMap<>();
+
+    // reference node embedding
+    // FiV',l(V) = dlnet(V, Vri) for 1 <= i <= k
+    private Map<Long, Double> getNetworkDistance(Node node, String propertyKey) {
+        if (distanceEstimations.containsKey(node.getId())) {
+            if (!distanceEstimations.get(node.getId()).containsKey(propertyKey)) {
+                distanceEstimations.get(node.getId()).put(propertyKey, calculateNetworkDistance(node, propertyKey));
+            }
+        } else {
+            Map<String, Map<Long, Double>> propertyDistance = new HashMap<>();
+            propertyDistance.put(propertyKey, calculateNetworkDistance(node, propertyKey));
+            distanceEstimations.put(node.getId(), propertyDistance);
+        }
+        return distanceEstimations.get(node.getId()).get(propertyKey);
+    }
+
+    private Map<Long, Double> calculateNetworkDistance(Node node, String propertyKey) {
         // Store cost of shortest path w.r.t nodes
         Map<Long, Double> networkDistances = new LinkedHashMap<>();
         // Apply dijkstra according to attribute/weightIndex
-        PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.OUTGOING), propertyKey);
+        PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.INCOMING), propertyKey);
+        // db.getAllNodes() should be some reference nodes, but which
         for (Node graphNode : db.getAllNodes()) {
             WeightedPath p = finder.findSinglePath(node, graphNode);
             networkDistances.put(graphNode.getId(), (p == null || p.weight() == 0) ? 0d : p.weight());
         }
         return networkDistances;
     }
+
 
     private List<Path> expand(Path path) {
         List<Path> expandedPaths = new LinkedList<>();
@@ -331,6 +352,7 @@ public class RouteSkyline {
             Path p = candidateQueue.poll();             // fetch next path(sub-route) from the queue
             if (p.endNode().equals(destination)) {      // route completed
                 boolean p_isDominated = false;
+                // Is p dominated by any skyline route?
                 for (Path route : skylineRoutes) {
                     if (isDominatedBy(p, route)) {
                         p_isDominated = true;
@@ -354,6 +376,7 @@ public class RouteSkyline {
                 // lower bounding cost estimations for each path attribute
                 Vector<Double> pLb = lb(p);
                 boolean plb_isDominated = false;
+                // Does any skyline route dominate the lower bounding cost estimation vector?
                 for (Path route : skylineRoutes) {
                     if (doesDominate(route, pLb)) {
                         plb_isDominated = true;
@@ -378,6 +401,10 @@ public class RouteSkyline {
                 }
             }
         }
+        skylineRoutes.forEach(route -> {
+            System.out.println("Route" + route.toString());
+            System.out.println();
+        });
         return skylineRoutes.stream().map(SkylineRoute::new);
             /*
         } else {
