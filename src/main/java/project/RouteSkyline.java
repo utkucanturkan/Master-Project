@@ -1,7 +1,5 @@
 package project;
 
-import org.neo4j.cypher.internal.compiler.v2_3.No;
-import org.neo4j.cypher.internal.frontend.v3_4.phases.Do;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.WeightedPath;
@@ -14,7 +12,6 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.util.*;
-import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.stream.Stream;
 
 public class RouteSkyline {
