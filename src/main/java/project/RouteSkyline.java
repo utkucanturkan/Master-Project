@@ -139,7 +139,6 @@ public class RouteSkyline {
         return networkDistances;
     }
 
-
     private List<Path> expand(Path path) {
         List<Path> expandedPaths = new LinkedList<>();
         for (Relationship r : (Iterable<Relationship>) PathExpanders.forDirection(Direction.OUTGOING).expand(path, BranchState.NO_STATE)) {
@@ -245,8 +244,7 @@ public class RouteSkyline {
             return subRoutes;
         }
         subRoutes = new LinkedList<>();
-        // TODO: correct maximum depth of the path
-        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.OUTGOING), Integer.MAX_VALUE);
+        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.INCOMING), Integer.MAX_VALUE);
         for (Path p : finder.findAllPaths(startNode, node)) {
             // TODO: control whether the path is dominated by any another path
             boolean p_isDominated = false;
@@ -266,16 +264,13 @@ public class RouteSkyline {
                         subRouteIndex--;
                     }
                 }
+
                 subRoutes.add(p);
                 setProcessed(p, false);
             }
         }
-        setSubRouteSkylines(node, subRoutes);
-        return subRoutes;
-    }
-
-    private void setSubRouteSkylines(Node node, List<Path> subRoutes) {
         subRouteSkylines.put(node.getId(), subRoutes);
+        return subRoutes;
     }
 
     @Procedure(value = "dbis.BRSC", name = "dbis.BRSC")
