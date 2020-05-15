@@ -50,6 +50,9 @@ public class RouteSkyline {
 
     // DEFINITION 7
     private boolean isDominatedBy(Path lhsPath, Path rhsPath) {
+        if (lhsPath.equals(rhsPath)) {
+            return false;
+        }
         int dominatedWeightCount = 0;
         for (String propertyKey : propertyKeys) {
             if (cost(lhsPath, propertyKey) > cost(rhsPath, propertyKey)) {
@@ -59,13 +62,13 @@ public class RouteSkyline {
         return dominatedWeightCount == propertyKeys.size();
     }
 
-    private boolean doesDominate(Path path, Vector<Double> vector) {
+    private boolean isDominatedBy(Vector<Double> vector, Path path) {
         int dominatedWeightCount = 0, index = 0;
         for (String propertyKey : propertyKeys) {
-            if (vector.get(index) < cost(path, propertyKey)) {
+            if (vector.get(index) > cost(path, propertyKey)) {
                 dominatedWeightCount++;
             }
-            index++;
+            index += 1;
         }
         return dominatedWeightCount == propertyKeys.size();
     }
@@ -82,7 +85,7 @@ public class RouteSkyline {
         Vector<Double> lb = new Vector<>();
         int propertyIndex = 0;
         for (String propertyKey : propertyKeys) {
-            lb.add(propertyIndex, attr(path).get(propertyIndex) + networkDistanceEstimation(startNode, destinationNode, propertyKey));
+            lb.add(attr(path).get(propertyIndex) + networkDistanceEstimation(path.startNode(), destinationNode, propertyKey));
             propertyIndex++;
         }
         return lb;
@@ -133,8 +136,8 @@ public class RouteSkyline {
         PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.INCOMING), propertyKey);
         // db.getAllNodes() should be some reference nodes, but which
         for (Node graphNode : db.getAllNodes()) {
-            WeightedPath p = finder.findSinglePath(node, graphNode);
-            networkDistances.put(graphNode.getId(), (p == null || p.weight() == 0) ? 0d : p.weight());
+            WeightedPath p = finder.findSinglePath(graphNode, node);
+            networkDistances.put(graphNode.getId(), (p == null) ? 0d : p.weight());
         }
         return networkDistances;
     }
@@ -205,7 +208,7 @@ public class RouteSkyline {
             for (Relationship lhsRelationShip : path.relationships()) {
                 for (Relationship rhsRelationShip : path.relationships()) {
                     if (!lhsRelationShip.equals(rhsRelationShip) &&
-                            (lhsRelationShip.getEndNode().equals(rhsRelationShip.getEndNode()) || lhsRelationShip.getEndNode().equals(startNode))) {
+                            (lhsRelationShip.getEndNode().equals(rhsRelationShip.getEndNode()) || lhsRelationShip.getEndNode().equals(path.startNode()))) {
                         return true;
                     }
                 }
@@ -245,8 +248,11 @@ public class RouteSkyline {
         }
         subRoutes = new LinkedList<>();
         PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.INCOMING), Integer.MAX_VALUE);
-        for (Path p : finder.findAllPaths(startNode, node)) {
+        for (Path p : finder.findAllPaths(node, startNode)) {
+            subRoutes.add(p);
+            setProcessed(p, false);
             // TODO: control whether the path is dominated by any another path
+            /*
             boolean p_isDominated = false;
             for (Path anotherPath: subRoutes) {
                 if (isDominatedBy(p, anotherPath)) {
@@ -264,10 +270,10 @@ public class RouteSkyline {
                         subRouteIndex--;
                     }
                 }
-
                 subRoutes.add(p);
                 setProcessed(p, false);
             }
+            */
         }
         subRouteSkylines.put(node.getId(), subRoutes);
         return subRoutes;
@@ -370,7 +376,7 @@ public class RouteSkyline {
                 boolean plb_isDominated = false;
                 // Does any skyline route dominate the lower bounding cost estimation vector?
                 for (Path route : skylineRoutes) {
-                    if (doesDominate(route, pLb)) {
+                    if (isDominatedBy(pLb, route)) {
                         plb_isDominated = true;
                         break;
                     }
@@ -393,6 +399,9 @@ public class RouteSkyline {
                 }
             }
         }
+        skylineRoutes.forEach(route -> {
+            System.out.println(route.relationships());
+        });
         return skylineRoutes.stream().map(SkylineRoute::new);
             /*
         } else {
@@ -416,9 +425,9 @@ public class RouteSkyline {
                     @Override
                     public int compare(Node o1, Node o2) {
                         if (getSubRouteSkylines(o1).size() > getSubRouteSkylines(o2).size())
-                            return 1;
-                        else if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size())
                             return -1;
+                        else if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size())
+                            return 1;
                         return 0;
                     }
                 }
@@ -435,7 +444,7 @@ public class RouteSkyline {
                 Vector<Double> pLb = lb(p);
                 boolean plb_isDominated = false;
                 for (Path route : skylineRoutes) {
-                    if (doesDominate(route, pLb)) {
+                    if (isDominatedBy(pLb, route)) {
                         plb_isDominated = true;
                         getSubRouteSkylines(nI).remove(p);
                         subRouteSkylineIndex--;
@@ -446,7 +455,7 @@ public class RouteSkyline {
                     List<Path> vecPath = expand(p);                         // expand actual path p by one hop (in each direction)
                     for (Path pPrime : vecPath) {
                         setProcessed(pPrime, true);                    // mark sub-route pPrime as processed
-                        if (pPrime.endNode().equals(destinationNode)) {      // route completed
+                        if (pPrime.endNode().equals(destination)) {      // route completed
                             boolean pPrime_isDominated = false;
                             for (Path route : skylineRoutes) {
                                 if (isDominatedBy(pPrime, route)) {
@@ -491,6 +500,9 @@ public class RouteSkyline {
                 }
             }
         }
+        skylineRoutes.forEach(route -> {
+            System.out.println(route.relationships());
+        });
         return skylineRoutes.stream().map(SkylineRoute::new);
     }
 
