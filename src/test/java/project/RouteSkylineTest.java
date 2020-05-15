@@ -37,10 +37,14 @@ public class RouteSkylineTest {
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
             // Seed the graph 6-nodes, 20-relationships with length and cost attributes
             seed(session);
+            long startTime = System.nanoTime();
             StatementResult result = session.run(
                     "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
                     "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;"
             );
+            long endTime = System.nanoTime();
+            long timeElapsed = endTime - startTime;
+            System.out.println("BRSC Execution Time: " + timeElapsed / 1000000);
             assertThat(result.stream().count()).isEqualTo(3);
         }
     }
@@ -49,9 +53,13 @@ public class RouteSkylineTest {
     public void findRouteSkylinesByARSC() {
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
             seed(session);
+            long startTime = System.nanoTime();
             StatementResult result = session.run(
                     "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
                     "CALL dbis.ARSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
+            long endTime = System.nanoTime();
+            long timeElapsed = endTime - startTime;
+            System.out.println("ARSC Execution Time: " + timeElapsed / 1000000);
             assertThat(result.stream().count()).isEqualTo(3);
         }
     }

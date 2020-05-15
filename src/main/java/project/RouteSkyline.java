@@ -247,7 +247,7 @@ public class RouteSkyline {
             return subRoutes;
         }
         subRoutes = new LinkedList<>();
-        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.OUTGOING), Integer.MAX_VALUE);
+        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.INCOMING), Integer.MAX_VALUE);
         for (Path p : finder.findAllPaths(startNode, node)) {
             // TODO: control whether the path is dominated by any another path
             boolean p_isDominated = false;
@@ -395,9 +395,6 @@ public class RouteSkyline {
                 }
             }
         }
-        skylineRoutes.forEach(route -> {
-            System.out.println(route.relationships());
-        });
         return skylineRoutes.stream().map(SkylineRoute::new);
             /*
         } else {
@@ -432,7 +429,6 @@ public class RouteSkyline {
             nodeQueue.add(graphNode);
         }
         List<Path> skylineRoutes = new LinkedList<>();
-        //nodeQueue.add(startNode);
         while (!nodeQueue.isEmpty()) {
             Node nI = nodeQueue.poll();
             // to a path from the source node
@@ -499,9 +495,6 @@ public class RouteSkyline {
                 }
             }
         }
-        skylineRoutes.forEach(route -> {
-            System.out.println(route.relationships());
-        });
         return skylineRoutes.stream().map(SkylineRoute::new);
     }
 
