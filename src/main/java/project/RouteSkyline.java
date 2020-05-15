@@ -247,12 +247,9 @@ public class RouteSkyline {
             return subRoutes;
         }
         subRoutes = new LinkedList<>();
-        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.INCOMING), Integer.MAX_VALUE);
-        for (Path p : finder.findAllPaths(node, startNode)) {
-            subRoutes.add(p);
-            setProcessed(p, false);
+        PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.OUTGOING), Integer.MAX_VALUE);
+        for (Path p : finder.findAllPaths(startNode, node)) {
             // TODO: control whether the path is dominated by any another path
-            /*
             boolean p_isDominated = false;
             for (Path anotherPath: subRoutes) {
                 if (isDominatedBy(p, anotherPath)) {
@@ -273,10 +270,9 @@ public class RouteSkyline {
                 subRoutes.add(p);
                 setProcessed(p, false);
             }
-            */
         }
         subRouteSkylines.put(node.getId(), subRoutes);
-        return subRoutes;
+        return subRouteSkylines.get(node.getId());
     }
 
     @Procedure(value = "dbis.BRSC", name = "dbis.BRSC")
@@ -348,7 +344,7 @@ public class RouteSkyline {
         candidateQueue.add(p0);
         while (!candidateQueue.isEmpty()) {
             Path p = candidateQueue.poll();             // fetch next path(sub-route) from the queue
-            if (p.endNode().equals(destination)) {      // route completed
+            if (p.endNode().getId() == destination.getId()) {      // route completed
                 boolean p_isDominated = false;
                 // Is p dominated by any skyline route?
                 for (Path route : skylineRoutes) {
@@ -432,8 +428,11 @@ public class RouteSkyline {
                     }
                 }
         );      // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubouteSkyline
+        for (Node graphNode : db.getAllNodes()) {
+            nodeQueue.add(graphNode);
+        }
         List<Path> skylineRoutes = new LinkedList<>();
-        nodeQueue.add(startNode);
+        //nodeQueue.add(startNode);
         while (!nodeQueue.isEmpty()) {
             Node nI = nodeQueue.poll();
             // to a path from the source node
@@ -455,7 +454,7 @@ public class RouteSkyline {
                     List<Path> vecPath = expand(p);                         // expand actual path p by one hop (in each direction)
                     for (Path pPrime : vecPath) {
                         setProcessed(pPrime, true);                    // mark sub-route pPrime as processed
-                        if (pPrime.endNode().equals(destination)) {      // route completed
+                        if (pPrime.endNode().getId() == destination.getId()) {      // route completed
                             boolean pPrime_isDominated = false;
                             for (Path route : skylineRoutes) {
                                 if (isDominatedBy(pPrime, route)) {
