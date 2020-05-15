@@ -249,7 +249,6 @@ public class RouteSkyline {
         subRoutes = new LinkedList<>();
         PathFinder<Path> finder = GraphAlgoFactory.allSimplePaths(PathExpanders.forDirection(Direction.INCOMING), Integer.MAX_VALUE);
         for (Path p : finder.findAllPaths(startNode, node)) {
-            // TODO: control whether the path is dominated by any another path
             boolean p_isDominated = false;
             for (Path anotherPath: subRoutes) {
                 if (isDominatedBy(p, anotherPath)) {
@@ -281,6 +280,7 @@ public class RouteSkyline {
                                      @Name("destination") Node destination,
                                      //@Name("relationship") Relationship relationship,
                                      @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
+        long startTime = System.currentTimeMillis();
         //if (hasAllKeys(relationship, relationshipPropertyKeys)) {
         //this.relationship = relationship;
         this.propertyKeys = relationshipPropertyKeys;
@@ -395,6 +395,18 @@ public class RouteSkyline {
                 }
             }
         }
+        long endTime = System.currentTimeMillis();
+        long timeElapsed = endTime - startTime;
+        System.out.println("BRSC Execution Time: " + timeElapsed);
+        // Get the Java runtime
+        Runtime runtime = Runtime.getRuntime();
+        // Run the garbage collector
+        runtime.gc();
+        // Calculate the used memory
+        long memory = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Used memory is bytes: " + memory);
+        System.out.println("Used memory is megabytes: "
+                + bytesToMegabytes(memory));
         return skylineRoutes.stream().map(SkylineRoute::new);
             /*
         } else {
@@ -404,12 +416,19 @@ public class RouteSkyline {
         */
     }
 
+    private static final long MEGABYTE = 1024L * 1024L;
+
+    public static long bytesToMegabytes(long bytes) {
+        return bytes / MEGABYTE;
+    }
+
     @Procedure(value = "dbis.ARSC", name = "dbis.ARSC")
     @Description("Advanced Route Skyline Computation from specified start node to destination node regarding to the relationship property keys")
     public Stream<SkylineRoute> ARSC(@Name("start") Node start,
                                      @Name("destination") Node destination,
                                      //@Name("relationship") Relationship relationship,
                                      @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
+        long startTime = System.currentTimeMillis();
         this.propertyKeys = relationshipPropertyKeys;
         this.startNode = start;
         this.destinationNode = destination;
@@ -495,6 +514,18 @@ public class RouteSkyline {
                 }
             }
         }
+        long endTime = System.currentTimeMillis();
+        long timeElapsed = endTime - startTime;
+        System.out.println("ARSC Execution Time: " + timeElapsed);
+        // Get the Java runtime
+        Runtime runtime = Runtime.getRuntime();
+        // Run the garbage collector
+        runtime.gc();
+        // Calculate the used memory
+        long memory = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Used memory is bytes: " + memory);
+        System.out.println("Used memory is megabytes: "
+                + bytesToMegabytes(memory));
         return skylineRoutes.stream().map(SkylineRoute::new);
     }
 
