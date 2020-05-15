@@ -1,4 +1,4 @@
-# MasterProjectNeo4jImplementation
+# Master Project Neo4j Implementation
 Route Skyline Queries: A Multi-Preference Path Planning Approach
 
 Kriegel, H.-P., Renz, M., & Schubert, M. (2010). Route skyline queries: A multi-preference path planning approach. 2010 IEEE 26th International Conference on Data Engineering (ICDE 2010). doi: 10.1109/icde.2010.5447845
