@@ -85,7 +85,7 @@ public class RouteSkyline {
         Vector<Double> lb = new Vector<>();
         int propertyIndex = 0;
         for (String propertyKey : propertyKeys) {
-            lb.add(attr(path).get(propertyIndex) + networkDistanceEstimation(path.startNode(), destinationNode, propertyKey));
+            lb.add(attr(path).get(propertyIndex) + networkDistanceEstimation(path.endNode(), destinationNode, propertyKey));
             propertyIndex++;
         }
         return lb;
