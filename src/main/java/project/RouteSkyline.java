@@ -1,6 +1,5 @@
 package project;
 
-import org.neo4j.cypher.internal.frontend.v3_4.phases.Do;
 import org.neo4j.graphalgo.*;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.BranchState;
@@ -11,7 +10,6 @@ import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
 import java.util.*;
-import java.util.function.DoubleBinaryOperator;
 import java.util.stream.Stream;
 
 public class RouteSkyline {
@@ -146,7 +144,7 @@ public class RouteSkyline {
         return networkDistances;
     }
 
-    private List<Path> expand(Path path) {
+    private List<Path> expandBRSC(Path path) {
         List<Path> expandedPaths = new LinkedList<>();
         for (Relationship r : (Iterable<Relationship>) PathExpanders.forDirection(Direction.OUTGOING).expand(path, BranchState.NO_STATE)) {
             Path p = new Path() {
@@ -207,7 +205,6 @@ public class RouteSkyline {
         return expandedPaths;
     }
 
-    // Advance
     private List<Path> expandARSC(Path path) {
         List<Path> expandedPaths = new LinkedList<>();
         for (Relationship r : (Iterable<Relationship>) PathExpanders.forDirection(Direction.OUTGOING).expand(path, BranchState.NO_STATE)) {
@@ -264,7 +261,6 @@ public class RouteSkyline {
                     return path.iterator();
                 }
             };
-
             if (subRouteSkylines.containsKey(r.getEndNodeId())) {
                 boolean is_SubRouteDominated = false;
                 for (Path subRoute : subRouteSkylines.get(r.getEndNodeId())) {
@@ -273,10 +269,9 @@ public class RouteSkyline {
                         break;
                     }
                 }
-
                 if (!is_SubRouteDominated) {
-                    subRouteSkylines.get(r.getEndNodeId()).add(p);
                     setProcessed(p, false);
+                    subRouteSkylines.get(r.getEndNodeId()).add(p);
                     for (int subRouteIndex = 0; subRouteIndex < subRouteSkylines.get(r.getEndNodeId()).size(); subRouteIndex++) {
                         Path oldSubRoute = subRouteSkylines.get(r.getEndNodeId()).get(subRouteIndex);
                         if (isDominatedBy(oldSubRoute, p)) {
@@ -287,9 +282,9 @@ public class RouteSkyline {
                     expandedPaths.add(p);
                 }
             } else {
+                setProcessed(p, false);
                 subRouteSkylines.put(r.getEndNodeId(), new LinkedList<>());
                 subRouteSkylines.get(r.getEndNodeId()).add(p);
-                setProcessed(p, false);
                 expandedPaths.add(p);
             }
         }
@@ -319,6 +314,7 @@ public class RouteSkyline {
         return true;
     }
 
+    // --- PROCESSED ---
     // stores the state of each path that are processed or not
     private static Map<String, Boolean> processedPaths = new HashMap<>();
 
@@ -330,27 +326,27 @@ public class RouteSkyline {
         processedPaths.put(path.toString(), state);
     }
 
+    // --- SUBROUTES ---
     // stores the subroutes from start node to specified node
     private static Map<Long, List<Path>> subRouteSkylines = new HashMap<>();
 
     private List<Path> getSubRouteSkylines(Node node) {
-        if (subRouteSkylines.containsKey(node.getId())) {
-            return subRouteSkylines.get(node.getId());
+        if (!subRouteSkylines.containsKey(node.getId())) {
+            List<Path> subRoutes = new LinkedList<>();
+            subRouteSkylines.put(node.getId(), subRoutes);
         }
-        List<Path> subRoutes = new LinkedList<>();
-        subRouteSkylines.put(node.getId(), subRoutes);
-        return subRoutes;
+        return subRouteSkylines.get(node.getId());
     }
 
     private void addSubRouteSkyline(Node node, Path path) {
-        boolean has_subroutesTheRoute = false;
+        boolean isRouteAlreadyASubroute = false;
         for (Path subRoute: getSubRouteSkylines(node)) {
             if (subRoute.equals(path)) {
-                has_subroutesTheRoute = true;
+                isRouteAlreadyASubroute = true;
                 break;
             }
         }
-        if (!has_subroutesTheRoute) {
+        if (!isRouteAlreadyASubroute) {
             getSubRouteSkylines(node).add(path);
         }
     }
@@ -457,7 +453,7 @@ public class RouteSkyline {
                 }
                 if (!plb_isDominated) {
                     // expand actual path by one hop (in each direction)
-                    List<Path> VecPath = expand(p);
+                    List<Path> VecPath = expandBRSC(p);
                     // remove sub-routes in vecPath that includes cycles
                     for (int vecPathIndex = 0; vecPathIndex < VecPath.size(); vecPathIndex++) {
                         Path subRoute = VecPath.get(vecPathIndex);
@@ -545,21 +541,18 @@ public class RouteSkyline {
                 new Comparator<Node>() {
                     @Override
                     public int compare(Node o1, Node o2) {
-                        if (getSubRouteSkylines(o1).size() > getSubRouteSkylines(o2).size())
-                            return -1;
-                        else if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size())
+                        if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size())
                             return 1;
-                        return 0;
+                        return -1;
                     }
                 }
-        );      // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubouteSkyline
+        );      // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubrouteSkyline
         for (Node graphNode : db.getAllNodes()) {
             nodeQueue.add(graphNode);
         }
         List<Path> skylineRoutes = new LinkedList<>();
         while (!nodeQueue.isEmpty()) {
             Node nI = nodeQueue.peek();
-            // to a path from the source node
             for (int subRouteSkylineIndex = 0; subRouteSkylineIndex < getSubRouteSkylines(nI).size(); subRouteSkylineIndex++) {
                 Path p = getSubRouteSkylines(nI).get(subRouteSkylineIndex);
                 // Pruning based on forward estimation
@@ -574,11 +567,11 @@ public class RouteSkyline {
                         break;
                     }
                 }
-                if (!plb_isDominated /*&& !isProcessed(p)*/) {                  // if sub-route is not processed yet
-                    List<Path> vecPath = expandARSC(p);                         // expand actual path p by one hop (in each direction)
+                if (!plb_isDominated /*&& !isProcessed(p)*/) {                              // if sub-route is not processed yet
+                    List<Path> vecPath = expandARSC(p);                                     // expand actual path p by one hop (in each direction)
                     for (Path pPrime : vecPath) {
-                        setProcessed(pPrime, true);                    // mark sub-route pPrime as processed
-                        if (pPrime.endNode().getId() == destination.getId()) {      // route completed
+                        setProcessed(pPrime, true);                                    // mark sub-route pPrime as processed
+                        if (pPrime.endNode().getId() == destination.getId()) {              // route completed
                             boolean pPrime_isDominated = false;
                             for (Path route : skylineRoutes) {
                                 if (isDominatedBy(pPrime, route)) {
@@ -587,11 +580,11 @@ public class RouteSkyline {
                                 }
                             }
                             if (!pPrime_isDominated) {
-                                skylineRoutes.add(pPrime);                  // path must be a skyline route
+                                skylineRoutes.add(pPrime);                                      // path must be a skyline route
                                 for (int skylineRouteIndex = 0; skylineRouteIndex < skylineRoutes.size(); skylineRouteIndex++) {
                                     Path route = skylineRoutes.get(skylineRouteIndex);
                                     if (isDominatedBy(route, pPrime)) {
-                                        skylineRoutes.remove(route);        // update route skyline
+                                        skylineRoutes.remove(route);                            // update route skyline
                                         skylineRouteIndex--;
                                     }
                                 }
@@ -599,7 +592,7 @@ public class RouteSkyline {
                         } else {
                             // route is not completed and path must be further expanded
                             // Pruning based on sub-route skyline criterion (Pruning Criterion II)
-                            Node vNext = pPrime.endNode();  // access end node of the actual path
+                            Node vNext = pPrime.endNode();                                      // access end node of the actual path
                             boolean pPrime_isDominated = false;
                             for (Path route : getSubRouteSkylines(vNext)) {
                                 if (isDominatedBy(pPrime, route)) {
@@ -608,7 +601,6 @@ public class RouteSkyline {
                             }
                             if (!pPrime_isDominated) {
                                 addSubRouteSkyline(vNext, pPrime);
-                                //getSubRouteSkylines(vNext).add(pPrime);
                                 for (int vNextSubRouteSkylineIndex = 0; vNextSubRouteSkylineIndex < getSubRouteSkylines(vNext).size(); vNextSubRouteSkylineIndex++) {
                                     Path route = getSubRouteSkylines(vNext).get(vNextSubRouteSkylineIndex);
                                     if (isDominatedBy(route, pPrime)) {
@@ -618,7 +610,6 @@ public class RouteSkyline {
                                 }
                             }
                             // update nodeQueue
-                            // updating is automatically done by priority queue with overrided compare method
                         }
                     }
                 }
@@ -643,27 +634,4 @@ public class RouteSkyline {
             this.route = p.toString();
         }
     }
-
-    /*
-    public class Label {
-        public Node referenceNode;
-        public Node previousNode;
-        public Map<String, Double> costs;
-    }
-
-    public class SubRoute {
-        public List<Label> labels;
-        public void add() {
-
-        }
-
-        public void remove() {
-
-        }
-
-        public boolean isDominated() {
-            return false;
-        }
-    }
-    */
 }
