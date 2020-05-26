@@ -359,7 +359,6 @@ public class RouteSkyline {
         this.propertyKeys = relationshipPropertyKeys;
         this.startNode = start;
         this.destinationNode = destination;
-        
         Queue<Path> candidateQueue = new PriorityQueue<>(new Comparator<Path>() {
             @Override
             public int compare(Path o1, Path o2) {
@@ -417,7 +416,7 @@ public class RouteSkyline {
         };
         candidateQueue.add(p0);
         while (!candidateQueue.isEmpty()) {
-            Path p = candidateQueue.poll();             // fetch next path(sub-route) from the queue
+            Path p = candidateQueue.peek();             // fetch next path(sub-route) from the queue
             if (p.endNode().getId() == destination.getId()) {      // route completed
                 boolean p_isDominated = false;
                 // Is p dominated by any skyline route?
@@ -468,6 +467,7 @@ public class RouteSkyline {
                     }
                 }
             }
+            candidateQueue.remove(p);
         }
         System.out.println("BRSC Routes;");
         skylineRoutes.forEach(route -> {
@@ -541,9 +541,9 @@ public class RouteSkyline {
                 new Comparator<Node>() {
                     @Override
                     public int compare(Node o1, Node o2) {
-                        if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size())
-                            return 1;
-                        return -1;
+                        if (getSubRouteSkylines(o1).size() > getSubRouteSkylines(o2).size()) return -1;
+                        else if (getSubRouteSkylines(o1).size() < getSubRouteSkylines(o2).size()) return 1;
+                        return 0;
                     }
                 }
         );      // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubrouteSkyline

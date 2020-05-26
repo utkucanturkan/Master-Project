@@ -15,6 +15,9 @@ public class RouteSkylineTest {
 
     private String seedQuery = "create(n0:Node{name:'n0'}),(n1:Node{name:'n1'}),(n2:Node{name:'n2'}),(n3:Node{name:'n3'}),(n4:Node{name:'n4'}),(n5:Node{name:'n5'}),(n0)-[:GOES_TO{length:7, cost:7}]->(n1), \n" +
             "(n1)-[:GOES_TO{length:7, cost:7}]->(n0),(n0)-[:GOES_TO{length:3, cost:6}]->(n3),(n3)-[:GOES_TO{length:3, cost:6}]->(n0),(n0)-[:GOES_TO{length:4, cost:4}]->(n2),(n2)-[:GOES_TO{length:4, cost:4}]->(n0),(n3)-[:GOES_TO{length:2, cost:2}]->(n1),(n1)-[:GOES_TO{length:2, cost:2}]->(n3),(n3)-[:GOES_TO{length:3, cost:3}]->(n2),(n2)-[:GOES_TO{length:3, cost:3}]->(n3),(n3)-[:GOES_TO{length:3, cost:6}]->(n5),(n5)-[:GOES_TO{length:3, cost:6}]->(n3),(n3)-[:GOES_TO{length:5, cost:4}]->(n4),(n4)-[:GOES_TO{length:5, cost:4}]->(n3),(n2)-[:GOES_TO{length:5, cost:5}]->(n4),(n4)-[:GOES_TO{length:5, cost:5}]->(n2),(n4)-[:GOES_TO{length:1, cost:1}]->(n5),(n5)-[:GOES_TO{length:1, cost:1}]->(n4),(n5)-[:GOES_TO{length:7, cost:7}]->(n1),(n1)-[:GOES_TO{length:7, cost:7}]->(n5);";
+
+    private String seedQuery2 = "create(s:Node{name:'s'}),(a:Node{name:'a'}),(b:Node{name:'b'}),(c:Node{name:'c'}),(d:Node{name:'d'}),(t:Node{name:'t'}),(s)-[:GOES_TO{length:2, cost:2}]->(a),(s)-[:GOES_TO{length:3, cost:6}]->(c),(s)-[:GOES_TO{length:3, cost:5}]->(b),(a)-[:GOES_TO{length:2, cost:2}]->(c),(b)-[:GOES_TO{length:4, cost:5}]->(d),(c)-[:GOES_TO{length:3, cost:4}]->(d),(c)-[:GOES_TO{length:5, cost:8}]->(t),(d)-[:GOES_TO{length:4, cost:7}]->(t);";
+
     private boolean isDataSeeded = false;
 
     @BeforeAll
@@ -35,7 +38,6 @@ public class RouteSkylineTest {
     @Test
     public void findRouteSkylinesByBRSC() {
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
-            // Seed the graph 6-nodes, 20-relationships with length and cost attributes
             seed(session);
             StatementResult result = session.run(
                     "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
