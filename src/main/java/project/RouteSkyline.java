@@ -22,6 +22,8 @@ public class RouteSkyline {
     private static Map<String, Boolean> processedPaths = new HashMap<>();
     // stores the subroutes from start node to specified node
     private static Map<Long, List<Path>> subRouteSkylines = new HashMap<>();
+    // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubrouteSkyline
+    private static PriorityQueue<Node> nodeQueue;
 
     @Context
     public GraphDatabaseService db;
@@ -33,8 +35,7 @@ public class RouteSkyline {
         double cost = 0d;
         if (path.relationships() != null) {
             for (Relationship e : path.relationships()) {
-                double weight = Double.valueOf(e.getProperty(propertyKey).toString());
-                cost += weight;
+                cost += Double.parseDouble(e.getProperty(propertyKey).toString());
             }
         }
         return cost;
@@ -44,20 +45,16 @@ public class RouteSkyline {
     private double preferenceFunction(Path path) {
         double result = 0d;
         for (String properyKey : propertyKeys) {
-            double cost = cost(path, properyKey);
-            result += cost;
+            result += cost(path, properyKey);
         }
         return result;
     }
 
     // DEFINITION 7
     private boolean isDominatedBy(Path lhsPath, Path rhsPath) {
-        if (lhsPath.equals(rhsPath)) {
-            return false;
-        }
-        if (lhsPath.relationships() == null || rhsPath.relationships() == null) {
-            return false;
-        }
+        if (lhsPath == null || rhsPath == null) return false;
+        if (lhsPath.relationships() == null || rhsPath.relationships() == null) return false;
+        if (lhsPath.equals(rhsPath)) return false;
         int dominatedWeightCount = 0;
         for (String propertyKey : propertyKeys) {
             if (cost(lhsPath, propertyKey) > cost(rhsPath, propertyKey)) {
@@ -68,6 +65,8 @@ public class RouteSkyline {
     }
 
     private boolean isDominatedBy(Vector<Double> vector, Path path) {
+        if (vector == null || path == null) return false;
+        if (vector.size() == 0 || path.relationships() == null) return false;
         int dominatedWeightCount = 0, index = 0;
         for (String propertyKey : propertyKeys) {
             if (vector.get(index) > cost(path, propertyKey)) {
@@ -98,7 +97,7 @@ public class RouteSkyline {
 
     // DEFINITION 5 - Dl(Vs, Vt) =  i=1...k max| FiV',l(Vs) - FiV',l(Vt) |
     private double networkDistanceEstimation(Node source, Node target, String propertyKey) {
-        // Stores distances from node to another nodes in the graph ? (reference nodes)
+        // Stores distances from node to another nodes in the graph (reference nodes)
         Map<Long, Double> distancesFromSource = getNetworkDistance(source, propertyKey);
         Map<Long, Double> distancesFromTarget = getNetworkDistance(target, propertyKey);
         Vector<Double> results = new Vector<>();
@@ -137,8 +136,7 @@ public class RouteSkyline {
         Map<Long, Double> networkDistances = new LinkedHashMap<>();
         // Apply dijkstra according to attribute/weightIndex
         PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.INCOMING), propertyKey);
-        // TODO: There should be some reference nodes, but which nodes?
-        // db.getAllNodes are not efficient
+        // db.getAllNodes might be not efficient
         for (Node graphNode : db.getAllNodes()) {
             WeightedPath p = finder.findSinglePath(graphNode, node);
             networkDistances.put(graphNode.getId(), (p == null) ? 0d : p.weight());
@@ -272,8 +270,9 @@ public class RouteSkyline {
                     }
                 }
                 if (!is_SubRouteDominated) {
-                    setProcessed(p, false);
-                    subRouteSkylines.get(r.getEndNodeId()).add(p);
+                    //setProcessed(p, false);
+                    getSubRouteSkylines(r.getEndNode()).add(p);
+                    //subRouteSkylines.get(r.getEndNodeId()).add(p);
                     for (int subRouteIndex = 0; subRouteIndex < subRouteSkylines.get(r.getEndNodeId()).size(); subRouteIndex++) {
                         Path oldSubRoute = subRouteSkylines.get(r.getEndNodeId()).get(subRouteIndex);
                         if (isDominatedBy(oldSubRoute, p)) {
@@ -284,9 +283,8 @@ public class RouteSkyline {
                     expandedPaths.add(p);
                 }
             } else {
-                setProcessed(p, false);
-                subRouteSkylines.put(r.getEndNodeId(), new LinkedList<>());
-                subRouteSkylines.get(r.getEndNodeId()).add(p);
+                //setProcessed(p, false);
+                getSubRouteSkylines(r.getEndNode()).add(p);
                 expandedPaths.add(p);
                 if (r.getEndNode().getId() != destinationNode.getId())
                     nodeQueue.add(r.getEndNode());
@@ -328,8 +326,7 @@ public class RouteSkyline {
 
     private List<Path> getSubRouteSkylines(Node node) {
         if (!subRouteSkylines.containsKey(node.getId())) {
-            List<Path> subRoutes = new LinkedList<>();
-            subRouteSkylines.put(node.getId(), subRoutes);
+            subRouteSkylines.put(node.getId(), new LinkedList<>());
         }
         return subRouteSkylines.get(node.getId());
     }
@@ -474,8 +471,6 @@ public class RouteSkyline {
         });
         return skylineRoutes.stream().map(SkylineRoute::new);
     }
-    // updatable priority queue of nodes, each node stores its own sub-route skyline in a list n.SubrouteSkyline
-    private static PriorityQueue<Node> nodeQueue;
 
     @Procedure(value = "dbis.ARSC", name = "dbis.ARSC")
     @Description("Advanced Route Skyline Computation from specified start node to destination node regarding to the relationship property keys")
@@ -491,13 +486,13 @@ public class RouteSkyline {
                     public int compare(Node o1, Node o2) {
                         List<Path> o1SubRoutes = getSubRouteSkylines(o1);
                         List<Path> o2SubRoutes = getSubRouteSkylines(o2);
-                        for (Path p1: o1SubRoutes) {
+                        for (Path p1 : o1SubRoutes) {
                             double p1Prefence = preferenceFunction(p1);
                             int higherPrefenceCount = 0;
-                            for (Path p2: o2SubRoutes) {
+                            for (Path p2 : o2SubRoutes) {
                                 double p2Prefence = preferenceFunction(p2);
                                 if (p1Prefence > p2Prefence) {
-                                    higherPrefenceCount+=1;
+                                    higherPrefenceCount += 1;
                                 } else {
                                     break;
                                 }
@@ -557,7 +552,7 @@ public class RouteSkyline {
                 return null;
             }
         };
-        setProcessed(newPath, false);
+        //setProcessed(newPath, false);
         subRoutes.add(newPath);
         subRouteSkylines.put(startNode.getId(), subRoutes);
         List<Path> skylineRoutes = new LinkedList<>();
@@ -581,7 +576,7 @@ public class RouteSkyline {
                 if (!plb_isDominated /*&& !isProcessed(p)*/) {                              // if sub-route is not processed yet
                     List<Path> vecPath = expandARSC(p);                                     // expand actual path p by one hop (in each direction)
                     for (Path pPrime : vecPath) {
-                        setProcessed(pPrime, true);                                    // mark sub-route pPrime as processed
+                        //setProcessed(pPrime, true);                                    // mark sub-route pPrime as processed
                         if (pPrime.endNode().getId() == destination.getId()) {              // route completed
                             boolean pPrime_isDominated = false;
                             for (Path route : skylineRoutes) {
