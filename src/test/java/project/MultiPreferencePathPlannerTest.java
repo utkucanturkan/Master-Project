@@ -9,7 +9,7 @@ import org.neo4j.harness.TestServerBuilders;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class RouteSkylineTest {
+public class MultiPreferencePathPlannerTest {
     private static final Config driverConfig = Config.build().withoutEncryption().toConfig();
     private ServerControls embeddedDatabaseServer;
 
@@ -24,13 +24,13 @@ public class RouteSkylineTest {
     void initializeNeo4j() {
         this.embeddedDatabaseServer = TestServerBuilders
                 .newInProcessBuilder()
-                .withProcedure(RouteSkyline.class)
+                .withProcedure(MultiPreferencePathPlanner.class)
                 .newServer();
     }
 
     private void seed(Session session) {
         if (!isDataSeeded) {
-            session.run(seedQuery);
+            session.run(seedQuery2);
             isDataSeeded = true;
         }
     }
