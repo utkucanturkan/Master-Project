@@ -30,7 +30,7 @@ public class MultiPreferencePathPlannerTest {
 
     private void seed(Session session) {
         if (!isDataSeeded) {
-            session.run(seedQuery2);
+            session.run(seedQuery);
             isDataSeeded = true;
         }
     }
