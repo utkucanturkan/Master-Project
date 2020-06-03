@@ -120,21 +120,21 @@ public class MultiPreferencePathPlannerARSC {
         while (!nodeQueue.isEmpty()) {
             Node nI = nodeQueue.peek();
             for (int subRouteSkylineIndex = 0; subRouteSkylineIndex < subRouteSkyline.get(nI).size(); subRouteSkylineIndex++) {
-                Label label = subRouteSkyline.get(nI).get(subRouteSkylineIndex);
+                Label p = subRouteSkyline.get(nI).get(subRouteSkylineIndex);
                 // Pruning based on forward estimation
                 // compute attribute vector p.lb[] -> lower bounding cost estimations for each path attribute
-                Vector<Double> pLb =  lb(label);
+                Vector<Double> pLb =  lb(p);
                 boolean plb_isDominated = false;
                 for (Label route : routeSkylines) {
                     if (route.doesDominate(pLb)) {
                         plb_isDominated = true;
-                        subRouteSkyline.get(nI).remove(label);
+                        subRouteSkyline.get(nI).remove(p);
                         subRouteSkylineIndex--;
                         break;
                     }
                 }
                 if (!plb_isDominated) {                                                         // if sub-route is not processed yet
-                    List<Label> vecPath = label.expandARSC();                                    // expand actual path p by one hop (in each direction)
+                    List<Label> vecPath = p.expandARSC();                                    // expand actual path p by one hop (in each direction)
                     for (Label pPrime : vecPath) {
                         if (pPrime.lastNode().getId() == destination.getId()) {                 // route completed
                             boolean pPrime_isDominated = pPrime.checkRouteIsDominatedInRouteList(routeSkylines);
