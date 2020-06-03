@@ -24,7 +24,8 @@ public class MultiPreferencePathPlannerTest {
     void initializeNeo4j() {
         this.embeddedDatabaseServer = TestServerBuilders
                 .newInProcessBuilder()
-                .withProcedure(MultiPreferencePathPlanner.class)
+                .withProcedure(MultiPreferencePathPlannerBRSC.class)
+                .withProcedure(MultiPreferencePathPlannerARSC.class)
                 .newServer();
     }
 
