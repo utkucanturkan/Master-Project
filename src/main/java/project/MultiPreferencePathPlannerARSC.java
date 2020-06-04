@@ -179,11 +179,14 @@ public class MultiPreferencePathPlannerARSC {
     private void reportRouteSkylines(String algorithmName, List<Label> routeSkylines){
         System.out.println(algorithmName + " Routes;");
         routeSkylines.forEach(route -> {
+            /*
             route.getNodes().forEach(relationship -> {
                 System.out.print(relationship.getId() + " - ");
             });
+            */
+            System.out.print("Path - ");
             for (int criteriaIndex = 0; criteriaIndex < propertyKeys.size(); criteriaIndex++) {
-                System.out.print("Criteria-" + (criteriaIndex+1) + ": " + route.getCost().get(criteriaIndex) + "\t");
+                System.out.print("Criteria-" + (criteriaIndex+1) + ": " + route.getCost().get(criteriaIndex) + " ");
             }
             System.out.println();
         });
@@ -199,7 +202,8 @@ public class MultiPreferencePathPlannerARSC {
 
     public static class Label {
         private Vector<Double> cost = new Vector<>();
-        private Stack<Node> nodes = new Stack<>();
+        private Node lastNode;
+        //private Stack<Node> nodes = new Stack<>();
 
         public Label() {
             createInitialCostVector();
@@ -207,7 +211,8 @@ public class MultiPreferencePathPlannerARSC {
 
         public Label(Node startNode) {
             createInitialCostVector();
-            nodes.push(startNode);
+            //nodes.push(startNode);
+            lastNode = startNode;
         }
 
         public double getCostByIndex(int index) {
@@ -229,27 +234,35 @@ public class MultiPreferencePathPlannerARSC {
             }
         }
 
+        /*
         public void addNode(Node node) {
             nodes.push(node);
         }
+        */
 
         public Vector<Double> getCost() {
             return this.cost;
         }
 
+        /*
         public Stack<Node> getNodes() {
             return nodes;
         }
 
+        /*
         public void setNodes(Stack<Node> nodeStack) {
             nodes = nodeStack;
         }
+         */
 
         public Node lastNode() {
+            return lastNode;
+            /*
             if (nodes != null || !nodes.isEmpty()) {
                 return nodes.peek();
             }
             return null;
+             */
         }
 
         private List<Label> expandARSC() {
@@ -284,8 +297,9 @@ public class MultiPreferencePathPlannerARSC {
 
         public Label expand(Relationship relationship) {
             Label expandedLabel = new Label();
-            expandedLabel.setNodes((Stack<Node>) this.nodes.clone());
-            expandedLabel.addNode(relationship.getEndNode());
+            //expandedLabel.setNodes((Stack<Node>) this.nodes.clone());
+            //expandedLabel.addNode(relationship.getEndNode());
+            expandedLabel.lastNode = relationship.getEndNode();
             int index = 0;
             for (String propertyKey: propertyKeys) {
                 expandedLabel.getCost().set(index, this.cost.get(index) +
@@ -338,19 +352,21 @@ public class MultiPreferencePathPlannerARSC {
             Label label = (Label) o;
 
             if (!getCost().equals(label.getCost())) return false;
-            return getNodes().equals(label.getNodes());
+            return lastNode.equals(label.lastNode);
         }
 
         @Override
         public int hashCode() {
             int result = getCost().hashCode();
-            result = 31 * result + getNodes().hashCode();
+            result = 31 * result + lastNode.hashCode();
             return result;
         }
     }
 
     public static class SubRouteSkyline {
+
         private Map<Long, List<Label>> subRoutes;
+
         public SubRouteSkyline() {
             subRoutes = new HashMap<>();
         }
