@@ -18,6 +18,9 @@ public class MultiPreferencePathPlannerTest {
 
     private String seedQuery2 = "create(s:Node{name:'s'}),(a:Node{name:'a'}),(b:Node{name:'b'}),(c:Node{name:'c'}),(d:Node{name:'d'}),(t:Node{name:'t'}),(s)-[:GOES_TO{length:2, cost:2}]->(a),(s)-[:GOES_TO{length:3, cost:6}]->(c),(s)-[:GOES_TO{length:3, cost:5}]->(b),(a)-[:GOES_TO{length:2, cost:2}]->(c),(b)-[:GOES_TO{length:4, cost:5}]->(d),(c)-[:GOES_TO{length:3, cost:4}]->(d),(c)-[:GOES_TO{length:5, cost:8}]->(t),(d)-[:GOES_TO{length:4, cost:7}]->(t);";
 
+    private String rome99Query = "LOAD CSV FROM 'file:///D:/MasterProjects/MasterProjectNeo4jImplementation/src/test/java/project/rome99.csv' AS line MERGE (start:Node{name:line[0]}) MERGE (destination:Node{name:line[1]}) MERGE (start)-[:GOES_TO{length:line[2], cost:round(rand()*50)}]->(destination)";
+
+
     private boolean isDataSeeded = false;
 
     @BeforeAll
@@ -31,7 +34,7 @@ public class MultiPreferencePathPlannerTest {
 
     private void seed(Session session) {
         if (!isDataSeeded) {
-            session.run(seedQuery);
+            session.run(rome99Query);
             isDataSeeded = true;
         }
     }
@@ -44,7 +47,7 @@ public class MultiPreferencePathPlannerTest {
                     "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
                     "CALL dbis.BRSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;"
             );
-            assertThat(result.stream().count()).isEqualTo(3);
+            assertThat(result.stream().count()).isGreaterThan(0l);
         }
     }
 
@@ -53,9 +56,9 @@ public class MultiPreferencePathPlannerTest {
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
             seed(session);
             StatementResult result = session.run(
-                    "MATCH (startNode:Node{name:'n0'}), (destinationNode:Node{name:'n5'}) " +
+                    "MATCH (startNode:Node{name:'254'}), (destinationNode:Node{name:'257'}) " +
                     "CALL dbis.ARSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
-            assertThat(result.stream().count()).isEqualTo(3);
+            assertThat(result.stream().count()).isGreaterThan(0l);
         }
     }
 }

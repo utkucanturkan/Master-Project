@@ -48,24 +48,23 @@ public class MultiPreferencePathPlannerARSC {
     private Map<Long, Double> getNetworkDistance(Node node, String propertyKey) {
         if (distanceEstimations.containsKey(node.getId())) {
             if (!distanceEstimations.get(node.getId()).containsKey(propertyKey)) {
-                distanceEstimations.get(node.getId()).put(propertyKey, calculateNetworkDistance(node, propertyKey));
+                distanceEstimations.get(node.getId()).put(propertyKey, calculateNetworkDistance(propertyKey));
             }
         } else {
             Map<String, Map<Long, Double>> propertyDistance = new HashMap<>();
-            propertyDistance.put(propertyKey, calculateNetworkDistance(node, propertyKey));
+            propertyDistance.put(propertyKey, calculateNetworkDistance(propertyKey));
             distanceEstimations.put(node.getId(), propertyDistance);
         }
         return distanceEstimations.get(node.getId()).get(propertyKey);
     }
 
-    private Map<Long, Double> calculateNetworkDistance(Node node, String propertyKey) {
+    private Map<Long, Double> calculateNetworkDistance(String propertyKey) {
         // Store cost of shortest path w.r.t nodes
         Map<Long, Double> networkDistances = new LinkedHashMap<>();
         // Apply dijkstra according to attribute/weightIndex
         PathFinder<WeightedPath> finder = GraphAlgoFactory.dijkstra(PathExpanders.forDirection(Direction.INCOMING), propertyKey);
-        // db.getAllNodes might be not efficient
         for (Node graphNode : db.getAllNodes()) {
-            WeightedPath p = finder.findSinglePath(graphNode, node);
+            WeightedPath p = finder.findSinglePath(destinationNode, graphNode);
             networkDistances.put(graphNode.getId(), (p == null) ? 0d : p.weight());
         }
         return networkDistances;
@@ -86,6 +85,8 @@ public class MultiPreferencePathPlannerARSC {
     public Stream<RouteSkyline> ARSC(@Name("start") Node start,
                                      @Name("destination") Node destination,
                                      @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
+        long startTime = System.currentTimeMillis();
+
         propertyKeys = relationshipPropertyKeys;
         startNode = start;
         destinationNode = destination;
@@ -114,8 +115,10 @@ public class MultiPreferencePathPlannerARSC {
                     }
                 }
         );
+        Label startLabel = new Label(startNode);
+        Vector<Double> pLb =  lb(startLabel);
         List<Label> routeSkylines = new LinkedList<>();
-        subRouteSkyline.add(startNode, new Label(startNode));
+        subRouteSkyline.add(startNode, startLabel);
         nodeQueue.add(startNode);
         while (!nodeQueue.isEmpty()) {
             Node nI = nodeQueue.peek();
@@ -123,7 +126,7 @@ public class MultiPreferencePathPlannerARSC {
                 Label p = subRouteSkyline.get(nI).get(subRouteSkylineIndex);
                 // Pruning based on forward estimation
                 // compute attribute vector p.lb[] -> lower bounding cost estimations for each path attribute
-                Vector<Double> pLb =  lb(p);
+
                 boolean plb_isDominated = false;
                 for (Label route : routeSkylines) {
                     if (route.doesDominate(pLb)) {
@@ -172,6 +175,9 @@ public class MultiPreferencePathPlannerARSC {
             nodeQueue.remove(nI);
             subRouteSkyline.removeAll(nI);
         }
+        long endTime = System.currentTimeMillis();
+        long timeElapsed = (endTime - startTime)/1000;
+        System.out.println("Execution time in seconds: " + timeElapsed);
         reportRouteSkylines("ARSC", routeSkylines);
         return routeSkylines.stream().map(RouteSkyline::new);
     }
