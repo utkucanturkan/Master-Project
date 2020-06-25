@@ -2,6 +2,7 @@ package project;
 
 import org.neo4j.graphalgo.*;
 import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
@@ -86,7 +87,6 @@ public class MultiPreferencePathPlannerARSC {
                                      @Name("destination") Node destination,
                                      @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
         long startTime = System.currentTimeMillis();
-
         propertyKeys = relationshipPropertyKeys;
         startNode = start;
         destinationNode = destination;
@@ -116,7 +116,7 @@ public class MultiPreferencePathPlannerARSC {
                 }
         );
         Label startLabel = new Label(startNode);
-        Vector<Double> pLb =  lb(startLabel);
+        Vector<Double> pLb = lb(startLabel);
         List<Label> routeSkylines = new LinkedList<>();
         subRouteSkyline.add(startNode, startLabel);
         nodeQueue.add(startNode);
@@ -176,13 +176,13 @@ public class MultiPreferencePathPlannerARSC {
             subRouteSkyline.removeAll(nI);
         }
         long endTime = System.currentTimeMillis();
-        long timeElapsed = (endTime - startTime)/1000;
+        long timeElapsed = (endTime - startTime) / 1000;
         System.out.println("Execution time in seconds: " + timeElapsed);
         reportRouteSkylines("ARSC", routeSkylines);
         return routeSkylines.stream().map(RouteSkyline::new);
     }
 
-    private void reportRouteSkylines(String algorithmName, List<Label> routeSkylines){
+    private void reportRouteSkylines(String algorithmName, List<Label> routeSkylines) {
         System.out.println(algorithmName + " Routes;");
         routeSkylines.forEach(route -> {
             /*
@@ -192,7 +192,7 @@ public class MultiPreferencePathPlannerARSC {
             */
             System.out.print("Path - ");
             for (int criteriaIndex = 0; criteriaIndex < propertyKeys.size(); criteriaIndex++) {
-                System.out.print("Criteria-" + (criteriaIndex+1) + ": " + route.getCost().get(criteriaIndex) + " ");
+                System.out.print("Criteria-" + (criteriaIndex + 1) + ": " + route.getCost().get(criteriaIndex) + " ");
             }
             System.out.println();
         });
@@ -206,10 +206,152 @@ public class MultiPreferencePathPlannerARSC {
         }
     }
 
+    public class ParetoPrep {
+        private Map<Long, Map<String, Double>> lowerBounds = new HashMap<>();
+        private Map<Long, Map<String, Relationship>> successorEdges = new HashMap<>();
+
+        public double getLb(Node from, String propertyKey) {
+            if (from.getId() == destinationNode.getId()) {
+                return 0d;
+            }
+
+            if (!lowerBounds.containsKey(from.getId()) || !lowerBounds.get(from.getId()).containsKey(propertyKey)) {
+                Map<String, Double> emptyLowerBoundsMapByPropertyKey = new HashMap<>();
+                emptyLowerBoundsMapByPropertyKey.put(propertyKey, Double.POSITIVE_INFINITY);
+                lowerBounds.put(from.getId(), emptyLowerBoundsMapByPropertyKey);
+                return Double.POSITIVE_INFINITY;
+            }
+
+            return lowerBounds.get(from.getId()).get(propertyKey);
+        }
+
+        public void setLb(Node from, String propertyKey, Double value) {
+            if (lowerBounds.containsKey(from.getId())) {
+                lowerBounds.get(from.getId()).put(propertyKey, value);
+            } else {
+                lowerBounds.put(from.getId(), new HashMap<String, Double>() {{
+                    put(propertyKey, value);
+                }});
+            }
+        }
+
+        public void setSuccessorEdges(Node from, String propertyKey, Relationship edge) {
+            if (successorEdges.containsKey(from.getId())) {
+                successorEdges.get(from.getId()).put(propertyKey, edge);
+            } else {
+                successorEdges.put(from.getId(), new HashMap<String, Relationship>() {{
+                    put(propertyKey, edge);
+                }});
+            }
+        }
+
+        public Relationship getSuccessorEdges(Node from, String propertyKey) {
+            if (!successorEdges.containsKey(from.getId()) || !successorEdges.get(from.getId()).containsKey(propertyKey)) {
+                return null;
+            }
+            return successorEdges.get(from).get(propertyKey);
+        }
+
+        public List<Label> paretoPrep(Label startLabel) {
+            // Initialization
+            List<Label> S = new LinkedList<>();
+            Queue<Node> open = new PriorityQueue<>(new Comparator<Node>() {
+                @Override
+                public int compare(Node o1, Node o2) {
+                    double costSumNode1 = 0, costSumNode2 = 0;
+                    for (String propertyKey : propertyKeys) {
+                        costSumNode1 += getLb(o1, propertyKey);
+                        costSumNode2 += getLb(o2, propertyKey);
+                    }
+                    if (costSumNode1 < costSumNode2) return -1;
+                    else if (costSumNode1 > costSumNode2) return 1;
+                    else return 0;
+                }
+            });
+            open.add(destinationNode);
+            while (!open.isEmpty()) {
+
+                // Node Selection
+                // select n with minimal lower bound sum from open and remove from set
+                Node n = open.peek();
+                open.remove(n);
+
+                // Global Selection
+                boolean doesAKnownPathDominate = false;
+                for (Label aKnownPath : S) {
+                    Vector<Double> globalLowerBoundVector = new Vector<>();
+                    int index = 0;
+                    for (String propertyKey: propertyKeys) {
+                        double sum = getLb(n, propertyKey) + getLb(startNode, propertyKey);
+                        globalLowerBoundVector.add(index, sum);
+                        index++;
+                    }
+                    if (aKnownPath.doesDominate(globalLowerBoundVector)) {
+                        doesAKnownPathDominate = true;
+                        break;
+                    }
+                }
+
+                if (!doesAKnownPathDominate) {
+                    // Node Expansion
+                    Vector<String> modifiedComponents = new Vector<>();
+                    for (Relationship edge : n.getRelationships(Direction.INCOMING)) {
+                        Node m = edge.getStartNode();
+                        boolean isNodeAddedForAProperty = false;
+                        for (String propertyKey : propertyKeys) {
+                            double lbPlusCost = getLb(n, propertyKey) + Double.parseDouble(edge.getProperty(propertyKey).toString());
+                            if (lbPlusCost < getLb(m, propertyKey)) {
+                                setLb(m, propertyKey, lbPlusCost);
+                                if (m.getId() == startNode.getId()) {
+                                    modifiedComponents.add(propertyKey);
+                                }
+                                setSuccessorEdges(m, propertyKey, edge);
+                                if (!isNodeAddedForAProperty) {
+                                    if (m.getId() != startNode.getId()) {
+                                        open.add(m);
+                                        isNodeAddedForAProperty = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Path Construction
+                    if (!modifiedComponents.isEmpty()) {
+                        for (String modifiedComponent : modifiedComponents) {
+                            Label p = constructPath(modifiedComponent);
+                            S.add(p);
+                            for (int index = 0; index < S.size(); index++) {
+                                Label label = S.get(index);
+                                if (label.isDominatedBy(p)) {
+                                    S.remove(index);
+                                    index--;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return S;
+        }
+
+        private Label constructPath(String modifiedComponent) {
+            Node m = startNode;
+            Label p = new Label();
+            while (m.getId() != destinationNode.getId()) {
+                Relationship m_n = getSuccessorEdges(m, modifiedComponent);
+                if (m_n == null) break;
+                p = p.expand(m_n);
+                m = m_n.getEndNode();
+            }
+            return p;
+        }
+    }
+
     public static class Label {
         private Vector<Double> cost = new Vector<>();
         private Node lastNode;
-        //private Stack<Node> nodes = new Stack<>();
+
 
         public Label() {
             createInitialCostVector();
@@ -217,7 +359,6 @@ public class MultiPreferencePathPlannerARSC {
 
         public Label(Node startNode) {
             createInitialCostVector();
-            //nodes.push(startNode);
             lastNode = startNode;
         }
 
@@ -228,52 +369,29 @@ public class MultiPreferencePathPlannerARSC {
 
         public double preferenceFunction() {
             double result = 0d;
-            for (Double cost: this.getCost()) {
+            for (Double cost : this.getCost()) {
                 result += cost;
             }
             return result;
         }
 
-        private void createInitialCostVector(){
+        private void createInitialCostVector() {
             for (int index = 0; index < propertyKeys.size(); index++) {
                 cost.add(index, 0d);
             }
         }
 
-        /*
-        public void addNode(Node node) {
-            nodes.push(node);
-        }
-        */
-
         public Vector<Double> getCost() {
             return this.cost;
         }
 
-        /*
-        public Stack<Node> getNodes() {
-            return nodes;
-        }
-
-        /*
-        public void setNodes(Stack<Node> nodeStack) {
-            nodes = nodeStack;
-        }
-         */
-
         public Node lastNode() {
             return lastNode;
-            /*
-            if (nodes != null || !nodes.isEmpty()) {
-                return nodes.peek();
-            }
-            return null;
-             */
         }
 
         private List<Label> expandARSC() {
             List<Label> expandedPaths = new LinkedList<>();
-            for (Relationship relationship: lastNode().getRelationships(Direction.OUTGOING)){
+            for (Relationship relationship : lastNode().getRelationships(Direction.OUTGOING)) {
                 Label expandedPath = expand(relationship);
                 if (subRouteSkyline.contains(relationship.getEndNode())) {
                     boolean is_SubRouteDominated = expandedPath.checkRouteIsDominatedInRouteList(subRouteSkyline.get(relationship.getEndNode()));
@@ -303,11 +421,9 @@ public class MultiPreferencePathPlannerARSC {
 
         public Label expand(Relationship relationship) {
             Label expandedLabel = new Label();
-            //expandedLabel.setNodes((Stack<Node>) this.nodes.clone());
-            //expandedLabel.addNode(relationship.getEndNode());
             expandedLabel.lastNode = relationship.getEndNode();
             int index = 0;
-            for (String propertyKey: propertyKeys) {
+            for (String propertyKey : propertyKeys) {
                 expandedLabel.getCost().set(index, this.cost.get(index) +
                         Double.parseDouble(relationship.getProperty(propertyKey).toString()));
                 index++;
@@ -388,7 +504,7 @@ public class MultiPreferencePathPlannerARSC {
 
         private boolean add(Node node, Label label) {
             boolean isPathAlreadyASubroute = false;
-            for (Label subLabel: get(node)) {
+            for (Label subLabel : get(node)) {
                 if (label.equals(subLabel)) {
                     isPathAlreadyASubroute = true;
                     break;
