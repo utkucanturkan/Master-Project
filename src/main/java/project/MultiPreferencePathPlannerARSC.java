@@ -2,7 +2,6 @@ package project;
 
 import org.neo4j.graphalgo.*;
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
