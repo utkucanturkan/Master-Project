@@ -1,5 +1,6 @@
 package project;
 
+import org.neo4j.cypher.internal.frontend.v3_4.phases.Do;
 import org.neo4j.graphalgo.*;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
@@ -115,7 +116,11 @@ public class MultiPreferencePathPlannerARSC {
                 }
         );
         Label startLabel = new Label(startNode);
-        Vector<Double> pLb = lb(startLabel);
+
+        //Vector<Double> pLb = lb(startLabel);
+        ParetoPrep pp = new ParetoPrep();
+        Vector<Double> pLb = pp.paretoPrep(startLabel);
+
         List<Label> routeSkylines = new LinkedList<>();
         subRouteSkyline.add(startNode, startLabel);
         nodeQueue.add(startNode);
@@ -205,27 +210,31 @@ public class MultiPreferencePathPlannerARSC {
         }
     }
 
-    public class ParetoPrep {
+    public static class ParetoPrep {
         private Map<Long, Map<String, Double>> lowerBounds = new HashMap<>();
         private Map<Long, Map<String, Relationship>> successorEdges = new HashMap<>();
 
-        public double getLb(Node from, String propertyKey) {
+        private double getLb(Node from, String propertyKey) {
             if (from.getId() == destinationNode.getId()) {
                 return 0d;
             }
 
-            if (!lowerBounds.containsKey(from.getId()) || !lowerBounds.get(from.getId()).containsKey(propertyKey)) {
-                Map<String, Double> emptyLowerBoundsMapByPropertyKey = new HashMap<>();
-                emptyLowerBoundsMapByPropertyKey.put(propertyKey, Double.POSITIVE_INFINITY);
-                lowerBounds.put(from.getId(), emptyLowerBoundsMapByPropertyKey);
-                return Double.POSITIVE_INFINITY;
+            if (!lowerBounds.containsKey(from.getId())) {
+                lowerBounds.put(from.getId(), new HashMap<String, Double>() {{
+                    put(propertyKey, Double.POSITIVE_INFINITY);
+                }});
+            } else if (!lowerBounds.get(from.getId()).containsKey(propertyKey)) {
+                lowerBounds.get(from.getId()).put(propertyKey, Double.POSITIVE_INFINITY);
             }
 
             return lowerBounds.get(from.getId()).get(propertyKey);
         }
 
-        public void setLb(Node from, String propertyKey, Double value) {
+        private void setLb(Node from, String propertyKey, Double value) {
             if (lowerBounds.containsKey(from.getId())) {
+                if (lowerBounds.get(from.getId()) == null) {
+                    lowerBounds.put(from.getId(), new HashMap<>());
+                }
                 lowerBounds.get(from.getId()).put(propertyKey, value);
             } else {
                 lowerBounds.put(from.getId(), new HashMap<String, Double>() {{
@@ -234,8 +243,11 @@ public class MultiPreferencePathPlannerARSC {
             }
         }
 
-        public void setSuccessorEdges(Node from, String propertyKey, Relationship edge) {
+        private void setSuccessorEdges(Node from, String propertyKey, Relationship edge) {
             if (successorEdges.containsKey(from.getId())) {
+                if (successorEdges.get(from.getId()) == null) {
+                    successorEdges.put(from.getId(), new HashMap<>());
+                }
                 successorEdges.get(from.getId()).put(propertyKey, edge);
             } else {
                 successorEdges.put(from.getId(), new HashMap<String, Relationship>() {{
@@ -244,14 +256,14 @@ public class MultiPreferencePathPlannerARSC {
             }
         }
 
-        public Relationship getSuccessorEdges(Node from, String propertyKey) {
-            if (!successorEdges.containsKey(from.getId()) || !successorEdges.get(from.getId()).containsKey(propertyKey)) {
+        private Relationship getSuccessorEdges(Node from, String propertyKey) {
+            if (!successorEdges.containsKey(from.getId()) || successorEdges.get(from.getId()) == null) {
                 return null;
             }
-            return successorEdges.get(from).get(propertyKey);
+            return successorEdges.get(from.getId()).get(propertyKey);
         }
 
-        public List<Label> paretoPrep(Label startLabel) {
+        public Vector<Double> paretoPrep(Label startLabel) {
             // Initialization
             List<Label> S = new LinkedList<>();
             Queue<Node> open = new PriorityQueue<>(new Comparator<Node>() {
@@ -269,19 +281,17 @@ public class MultiPreferencePathPlannerARSC {
             });
             open.add(destinationNode);
             while (!open.isEmpty()) {
-
                 // Node Selection
                 // select n with minimal lower bound sum from open and remove from set
                 Node n = open.peek();
-                open.remove(n);
-
                 // Global Selection
                 boolean doesAKnownPathDominate = false;
                 for (Label aKnownPath : S) {
                     Vector<Double> globalLowerBoundVector = new Vector<>();
                     int index = 0;
-                    for (String propertyKey: propertyKeys) {
-                        double sum = getLb(n, propertyKey) + getLb(startNode, propertyKey);
+                    for (String propertyKey : propertyKeys) {
+                        double sum = getLb(n, propertyKey) + 0d;
+                        //getLb(startNode, propertyKey);
                         globalLowerBoundVector.add(index, sum);
                         index++;
                     }
@@ -330,8 +340,9 @@ public class MultiPreferencePathPlannerARSC {
                         }
                     }
                 }
+                open.remove(n);
             }
-            return S;
+            return S.get(0).getCost();
         }
 
         private Label constructPath(String modifiedComponent) {

@@ -34,7 +34,7 @@ public class MultiPreferencePathPlannerTest {
 
     private void seed(Session session) {
         if (!isDataSeeded) {
-            session.run(rome99Query);
+            session.run(seedQuery2);
             isDataSeeded = true;
         }
     }
@@ -56,7 +56,7 @@ public class MultiPreferencePathPlannerTest {
         try (Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig); Session session = driver.session()) {
             seed(session);
             StatementResult result = session.run(
-                    "MATCH (startNode:Node{name:'254'}), (destinationNode:Node{name:'257'}) " +
+                    "MATCH (startNode:Node{name:'s'}), (destinationNode:Node{name:'t'}) " +
                     "CALL dbis.ARSC(startNode, destinationNode, ['length', 'cost']) YIELD route RETURN route;");
             assertThat(result.stream().count()).isGreaterThan(0l);
         }
