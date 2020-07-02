@@ -52,7 +52,7 @@ public class MultiPreferencePathPlannerBRSC {
         for (Map.Entry<Long, Double> sourceEntry : distancesFromSource.entrySet()) {
             for (Map.Entry<Long, Double> targetEntry : distancesFromTarget.entrySet()) {
                 // if distances are through same nodes ex; vs -> N, vt -> N
-                if (sourceEntry.getKey() == targetEntry.getKey()) {
+                if (sourceEntry.getKey().equals(targetEntry.getKey())) {
                     // subtraction from source to target distance and take absolute of it
                     // if sourceDistance or targetDistance equals 0, set the network estimation distance 0
                     results.add(Math.abs(sourceEntry.getValue() - targetEntry.getValue()));
@@ -215,9 +215,9 @@ public class MultiPreferencePathPlannerBRSC {
     public Stream<RouteSkyline> BRSC(@Name("start") Node start,
                                      @Name("destination") Node destination,
                                      @Name("relationshipPropertyKeys") List<String> relationshipPropertyKeys) {
-        this.propertyKeys = relationshipPropertyKeys;
-        this.startNode = start;
-        this.destinationNode = destination;
+        propertyKeys = relationshipPropertyKeys;
+        startNode = start;
+        destinationNode = destination;
         Queue<Path> candidateQueue = new PriorityQueue<>(new Comparator<Path>() {
             @Override
             public int compare(Path o1, Path o2) {
@@ -321,19 +321,17 @@ public class MultiPreferencePathPlannerBRSC {
                         }
                     }
                     // insert sub-routes in vecPath into Qcand
-                    for (Path subRoute : VecPath) {
-                        candidateQueue.add(subRoute);
-                    }
+                    candidateQueue.addAll(VecPath);
                 }
             }
             candidateQueue.remove(p);
         }
-        reportRouteSkylines("BRSC", skylineRoutes);
+        reportRouteSkylines(skylineRoutes);
         return skylineRoutes.stream().map(RouteSkyline::new);
     }
 
-    private void reportRouteSkylines(String algorithmName, List<Path> routeSkylines){
-        System.out.println(algorithmName + " Routes;");
+    private void reportRouteSkylines(List<Path> routeSkylines){
+        System.out.println("BRSC" + " Routes;");
         routeSkylines.forEach(route -> {
             route.relationships().forEach(relationship -> {
                 System.out.print(relationship.toString());
