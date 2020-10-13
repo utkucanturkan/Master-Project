@@ -5,6 +5,10 @@ Kriegel, H.-P., Renz, M., & Schubert, M. (2010). Route skyline queries: A multi-
 
 The implementation of two route skyline queries on multi-attribute road networks. The algorithms that are called Basic Route Skyline Computation (BRSC) and Advanced Route Skyline Computation (ARSC) are defined on the paper as pseudocode. In this repository, there are implementations for [Neo4j](https://neo4j.com) platform which is a graph database management system. 
 
+[Presentation - Slides](https://docs.google.com/presentation/d/1i2L-WwTjWukVk6O8dKv_1DjhvP1KjxeaFkuC_FymUFM/edit?usp=sharing)
+
+[Implementation - Slides](https://docs.google.com/presentation/d/1rjhW5Bp8msT5kz4YaNVkFNny0pBCdypIAgZ-uRv_ieo/edit?usp=sharing)
+
 Effective lower bound computing method: Pareto-prep
 
 Shekelyan, Michael & Jossé, Gregor & Schubert, Matthias. (2015). ParetoPrep: Efficient Lower Bounds for Path Skylines and Fast Path Computation. 9239. 40-58. 10.1007/978-3-319-22363-6_3. 
