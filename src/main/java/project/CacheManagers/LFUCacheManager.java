@@ -2,8 +2,8 @@ package project.CacheManagers;
 
 import java.util.Map;
 
-public class FIFOCacheManager extends CacheManager {
-    private final String NAME = "FIFOCacheManager";
+public class LFUCacheManager extends CacheManager {
+    private final String NAME = "LFUCacheManager";
 
     @Override
     public String name() {
@@ -13,14 +13,13 @@ public class FIFOCacheManager extends CacheManager {
     @Override
     public void addElement(long element) {
         incrementIndexByOne();
-        if (!elements.containsKey(element)) {
-            elements.put(element, index);
-        }
+        elements.put(element, index);
     }
 
-    @Override
     public Long getNextElement() {
-        // TODO: compute the lowest index and get the value
+
+        // TODO: compute the least recently used element
+        // find the node that has the least value on the dictionary
 
         long leastRecentlyUsedElement = -1;
         int theLeastIndex = index;

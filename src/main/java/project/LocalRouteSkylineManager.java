@@ -1,8 +1,7 @@
 package project;
 
+import project.CacheManagers.*;
 import org.apache.commons.lang.NullArgumentException;
-import project.CacheManagers.CacheManager;
-import project.CacheManagers.LRUCacheManager;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -13,7 +12,7 @@ import java.util.Map;
 public class LocalRouteSkylineManager {
     private Map<Long, List<Label>> subRoutes = new HashMap<>();
     private DiskManager diskManager;
-    private CacheManager cacheManager = new LRUCacheManager();
+    private CacheManager cacheManager = new LFUCacheManager();
 
     public LocalRouteSkylineManager(DiskManager diskManager) {
         this.diskManager = diskManager;
@@ -48,11 +47,18 @@ public class LocalRouteSkylineManager {
     }
 
     public List<Label> get(long nodeId) throws IOException, ClassNotFoundException {
+
+        if (cacheManager instanceof LFUCacheManager) {
+            cacheManager.addElement(nodeId);
+        }
+
         if (!hasSubRoutesInMemory(nodeId)) {
             List<Label> subRoutesOfNode = diskManager.getFromDisc(this, nodeId);
             subRoutes.put(nodeId, subRoutesOfNode == null ? new LinkedList<>() : subRoutesOfNode);
+        } else {
+            cacheManager.incrementHitCount();
         }
-        cacheManager.incrementHitCount();
+
         return subRoutes.get(nodeId);
     }
 
@@ -89,8 +95,12 @@ public class LocalRouteSkylineManager {
                 return false;
             }
         }
-        cacheManager().addElement(nodeId);
         get(nodeId).add(label);
+
+        if (cacheManager instanceof FIFOCacheManager || cacheManager instanceof LRUCacheManager || cacheManager instanceof  MRUCacheManager) {
+            cacheManager().addElement(nodeId);
+        }
+
         diskManager.saveToDisc(this);
         return true;
     }
@@ -102,7 +112,6 @@ public class LocalRouteSkylineManager {
     public boolean hasSubRoutes(long nodeId) throws IOException, ClassNotFoundException {
         return getSizeOfSubRoutes(nodeId) > 0;
     }
-
 }
 
 

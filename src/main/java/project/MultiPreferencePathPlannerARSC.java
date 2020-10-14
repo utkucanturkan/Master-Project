@@ -1,5 +1,6 @@
 package project;
 
+import project.LowerBoundsCalculators.ParetoPrep;
 import org.neo4j.graphdb.*;
 import org.neo4j.procedure.*;
 
@@ -21,7 +22,7 @@ public class MultiPreferencePathPlannerARSC {
         long startNodeId = start.getId();
         long destinationNodeId = destination.getId();
 
-        DiskManager diskManager = new DiskManager(100f); //0.00001f
+        DiskManager diskManager = new DiskManager(0.000001f); //0.00001f
         LocalRouteSkylineManager localRouteSkylinesManager = new LocalRouteSkylineManager(diskManager);
         PerformanceReporter performanceReporter = new PerformanceReporter();
 

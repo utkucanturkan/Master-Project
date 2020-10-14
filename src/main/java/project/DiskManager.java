@@ -56,7 +56,12 @@ public class DiskManager {
             }
 
             while (localRouteSkylineManager.getTotalSubRouteCount() + additionalSubRouteCount > getSubrouteCountLimit()) {
-                long nodeId = localRouteSkylineManager.cacheManager().getNextElement();
+                Long nodeId = localRouteSkylineManager.cacheManager().getNextElement();
+
+                // If the cache memory is empty
+                if (nodeId == null) {
+                    break;
+                }
 
                 File subRouteFile = new File(SUBROUTE_OF_NODE_FILE_PATH + nodeId);
                 FileOutputStream fos = new FileOutputStream(subRouteFile, false);
