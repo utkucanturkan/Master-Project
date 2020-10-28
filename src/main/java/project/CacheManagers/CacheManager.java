@@ -31,9 +31,9 @@ public abstract class CacheManager {
 
     public abstract String name();
 
-    public abstract void addElement(long element);
+    public abstract void push(long element);
 
-    public abstract Long getNextElement();
+    public abstract Long peek();
 
     @Override
     public String toString() {

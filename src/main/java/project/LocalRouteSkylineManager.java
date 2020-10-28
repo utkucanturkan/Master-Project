@@ -12,7 +12,7 @@ import java.util.Map;
 public class LocalRouteSkylineManager {
     private Map<Long, List<Label>> subRoutes = new HashMap<>();
     private DiskManager diskManager;
-    private CacheManager cacheManager = new LFUCacheManager();
+    private CacheManager cacheManager = new LFUDACacheManager();
 
     public LocalRouteSkylineManager(DiskManager diskManager) {
         this.diskManager = diskManager;
@@ -26,7 +26,7 @@ public class LocalRouteSkylineManager {
         return subRoutes;
     }
 
-    public double getTotalBytesOfPrimitives() {
+    public double getTotalBytesOfPrimitivesInMemory() {
         double result = 0;
         for (Map.Entry<Long, List<Label>> entry : subRoutes.entrySet()) {
             result += (entry.getValue().size() * Label.getBytesOfPrimitives());
@@ -34,7 +34,7 @@ public class LocalRouteSkylineManager {
         return result;
     }
 
-    public int getTotalSubRouteCount() {
+    public int getTotalLocalRouteSkylineCountInMemory() {
         int subRouteCount = 0;
         for (Map.Entry<Long, List<Label>> subRouteEntry : subRoutes.entrySet()) {
             subRouteCount += subRouteEntry.getValue().size();
@@ -42,14 +42,14 @@ public class LocalRouteSkylineManager {
         return subRouteCount;
     }
 
-    public double getBytesOfPrimitives(long nodeId) {
+    public double getBytesOfPrimitivesInMemory(long nodeId) {
         return hasSubRoutesInMemory(nodeId) ? subRoutes.get(nodeId).size() * Label.getBytesOfPrimitives() : 0d;
     }
 
     public List<Label> get(long nodeId) throws IOException, ClassNotFoundException {
 
-        if (cacheManager instanceof LFUCacheManager) {
-            cacheManager.addElement(nodeId);
+        if (cacheManager instanceof LFUCacheManager || cacheManager instanceof LFUDACacheManager) {
+            cacheManager.push(nodeId);
         }
 
         if (!hasSubRoutesInMemory(nodeId)) {
@@ -63,6 +63,9 @@ public class LocalRouteSkylineManager {
     }
 
     public int getSizeOfSubRoutes(long nodeId) throws IOException, ClassNotFoundException {
+        if (hasSubRoutesInMemory(nodeId)) {
+            return subRoutes.get(nodeId).size();
+        }
         return get(nodeId).size();
     }
 
@@ -70,6 +73,11 @@ public class LocalRouteSkylineManager {
         if (index < 0) {
             throw new IllegalArgumentException("Index could not be less than zero.");
         }
+
+        if (hasSubRoutesInMemory(nodeId)){
+            return subRoutes.get(nodeId).get(index);
+        }
+
         return get(nodeId).get(index);
     }
 
@@ -77,7 +85,12 @@ public class LocalRouteSkylineManager {
         if (subRoute == null) {
             throw new NullArgumentException("subRoute");
         }
-        get(nodeId).remove(subRoute);
+
+        if (hasSubRoutesInMemory(nodeId)) {
+            subRoutes.get(nodeId).remove(subRoute);
+        } else {
+            get(nodeId).remove(subRoute);
+        }
     }
 
     public void removeAllSubRouteFromMemory(long nodeId) {
@@ -90,15 +103,17 @@ public class LocalRouteSkylineManager {
         if (label == null) {
             throw new NullArgumentException("label");
         }
-        for (Label subLabel : get(nodeId)) {
+
+        List<Label> localSkylineRoutes = get(nodeId);
+        for (Label subLabel : localSkylineRoutes) {
             if (label.equals(subLabel)) {
                 return false;
             }
         }
-        get(nodeId).add(label);
+        localSkylineRoutes.add(label);
 
         if (cacheManager instanceof FIFOCacheManager || cacheManager instanceof LRUCacheManager || cacheManager instanceof  MRUCacheManager) {
-            cacheManager().addElement(nodeId);
+            cacheManager().push(nodeId);
         }
 
         diskManager.saveToDisc(this);

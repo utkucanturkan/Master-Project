@@ -9,9 +9,16 @@ public class DiskManager {
     private final String SUBROUTE_OF_NODE_FILE_PATH = SUBROUTE_DIRECTORY_PATH + File.separator + "Node-";
     private float maximumMemoryPercentageForSubroute;
     private Vector<Long> savedNodesToDisc = new Vector<>();
+    private int localSkylineLimit;
 
+    /*
     public DiskManager(float memoryPercentage) {
         setMaximumMemoryPercentage(memoryPercentage);
+    }
+    */
+
+    public DiskManager(int localSkylineLimit) {
+        this.localSkylineLimit = localSkylineLimit;
     }
 
     public void setMaximumMemoryPercentage(float percentage) {
@@ -22,8 +29,9 @@ public class DiskManager {
         return maximumMemoryPercentageForSubroute;
     }
 
-    private float getSubrouteCountLimit() {
-        return (float) ((Runtime.getRuntime().freeMemory() * getMaximumMemoryPercentageForSubroute() / 100) / Label.getBytesOfPrimitives());
+    private int getLocalRouteSkylineLimit() {
+        return localSkylineLimit;
+        //return (float) ((Runtime.getRuntime().freeMemory() * getMaximumMemoryPercentageForSubroute() / 100) / Label.getBytesOfPrimitives());
     }
 
     private void setNodesAsSaved(LocalRouteSkylineManager localRouteSkylineManager, List<Long> nodeIds) {
@@ -32,6 +40,12 @@ public class DiskManager {
             if (!isNodeSaved(nodeId)) {
                 savedNodesToDisc.add(nodeId);
             }
+        }
+    }
+
+    private void setNodeAsSaved(long nodeId) {
+        if (!isNodeSaved(nodeId)) {
+            savedNodesToDisc.add(nodeId);
         }
     }
 
@@ -49,14 +63,14 @@ public class DiskManager {
         if (additionalSubRouteCount < 0) {
             throw new IllegalArgumentException("AdditionalSubRouteCount could not less than zero.");
         }
-        if (localRouteSkylineManager.getTotalSubRouteCount() + additionalSubRouteCount > getSubrouteCountLimit()) {
+        if (localRouteSkylineManager.getTotalLocalRouteSkylineCountInMemory() + additionalSubRouteCount > getLocalRouteSkylineLimit()) {
             final File SUBROUTES_OF_NODES_DIR = new File(SUBROUTE_DIRECTORY_PATH);
             if (!SUBROUTES_OF_NODES_DIR.exists()) {
                 SUBROUTES_OF_NODES_DIR.mkdir();
             }
 
-            while (localRouteSkylineManager.getTotalSubRouteCount() + additionalSubRouteCount > getSubrouteCountLimit()) {
-                Long nodeId = localRouteSkylineManager.cacheManager().getNextElement();
+            do {
+                Long nodeId = localRouteSkylineManager.cacheManager().peek();
 
                 // If the cache memory is empty
                 if (nodeId == null) {
@@ -73,36 +87,11 @@ public class DiskManager {
                 oos.close();
                 fos.close();
 
-                // remove the node from cache
+                // remove the node from cache or main memory
                 localRouteSkylineManager.removeAllSubRouteFromMemory(nodeId);
-                if (!isNodeSaved(nodeId)) {
-                    savedNodesToDisc.add(nodeId);
-                }
-            }
-
-
-            /*
-            List<Long> savedNodeIds = new LinkedList<>();
-            for (Map.Entry<Long, List<Label>> subRoutesEntry : localRouteSkylineManager.getSubRoutesOnMemory().entrySet()) {
-                long nodeId = subRoutesEntry.getKey();
-
-                File subRouteFile = new File(SUBROUTE_OF_NODE_FILE_PATH + nodeId);
-                FileOutputStream fos = new FileOutputStream(subRouteFile, false);
-                ObjectOutputStream oos = new ObjectOutputStream(fos);
-                if (!subRouteFile.exists()) {
-                    subRouteFile.createNewFile();
-                }
-                oos.writeObject(subRoutesEntry.getValue());
-                oos.close();
-                fos.close();
-
-                savedNodeIds.add(nodeId);
-                if (localRouteSkylineManager.getTotalSubRouteCount() + additionalSubRouteCount <= getSubrouteCountLimit()) {
-                    break;
-                }
-            }
-            setNodesAsSaved(localRouteSkylineManager, savedNodeIds);
-            */
+                setNodeAsSaved(nodeId);
+            } while (localRouteSkylineManager.getTotalLocalRouteSkylineCountInMemory() > 0
+                    && localRouteSkylineManager.getTotalLocalRouteSkylineCountInMemory() + additionalSubRouteCount > getLocalRouteSkylineLimit());
         }
     }
 
@@ -121,10 +110,10 @@ public class DiskManager {
                 List<Label> subRoutes = (List<Label>) ois.readObject();
                 ois.close();
                 fis.close();
+                subRouteFile.delete();
 
                 saveToDisc(localRouteSkylineManager, subRoutes.size());
                 deleteSavedNode(nodeId);
-                subRouteFile.delete();
 
                 return subRoutes;
             }

@@ -10,21 +10,22 @@ public class MRUCacheManager extends CacheManager {
         return NAME;
     }
 
-    public void addElement(long element) {
+    public void push(long element) {
         incrementIndexByOne();
         elements.put(element, index);
     }
 
-    public Long getNextElement() {
+    public Long peek() {
 
         // TODO: compute the most recently used element
         // find the node that has the biggest value on the dictionary
 
         long mostRecentlyUsedElement = -1;
-        for(Map.Entry<Long, Integer> entry: elements.entrySet()) {
-            if (entry.getValue() == index) {
+        int theBiggestIndex = Integer.MIN_VALUE;
+        for (Map.Entry<Long, Integer> entry : elements.entrySet()) {
+            if (entry.getValue() > theBiggestIndex) {
+                theBiggestIndex = entry.getValue();
                 mostRecentlyUsedElement = entry.getKey();
-                break;
             }
         }
 

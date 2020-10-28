@@ -162,7 +162,6 @@ public class ParetoPrep {
             }
             lowerBoundVector.add(lowerBoundVectorIndex, lowerBound);
         }
-
         return lowerBoundVector;
     }
 

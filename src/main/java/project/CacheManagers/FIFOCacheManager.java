@@ -11,7 +11,7 @@ public class FIFOCacheManager extends CacheManager {
     }
 
     @Override
-    public void addElement(long element) {
+    public void push(long element) {
         incrementIndexByOne();
         if (!elements.containsKey(element)) {
             elements.put(element, index);
@@ -19,7 +19,7 @@ public class FIFOCacheManager extends CacheManager {
     }
 
     @Override
-    public Long getNextElement() {
+    public Long peek() {
         // TODO: compute the lowest index and get the value
 
         long leastRecentlyUsedElement = -1;

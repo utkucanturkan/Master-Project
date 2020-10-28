@@ -84,11 +84,11 @@ public class PerformanceReporter {
 
 
     private void reportSubRouteSkylinesMemoryUsage(boolean showEachSubRouteMemoryUsage, LocalRouteSkylineManager localRouteSkylineManager) {
-        System.out.println("Total Memory Usage of all subroutes; " + localRouteSkylineManager.getTotalBytesOfPrimitives());
+        System.out.println("Total Memory Usage of all subroutes; " + localRouteSkylineManager.getTotalBytesOfPrimitivesInMemory());
         if (showEachSubRouteMemoryUsage) {
             for (Map.Entry<Long, List<Label>> entry : localRouteSkylineManager.getSubRoutesOnMemory().entrySet()) {
                 System.out.println("Node-" + entry.getKey() + " SubrouteSkyline(s) memory usage; " +
-                        localRouteSkylineManager.getBytesOfPrimitives(entry.getKey()));
+                        localRouteSkylineManager.getBytesOfPrimitivesInMemory(entry.getKey()));
             }
         }
     }

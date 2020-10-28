@@ -11,12 +11,12 @@ public class LFUCacheManager extends CacheManager {
     }
 
     @Override
-    public void addElement(long element) {
+    public void push(long element) {
         incrementIndexByOne();
         elements.put(element, index);
     }
 
-    public Long getNextElement() {
+    public Long peek() {
 
         // TODO: compute the least recently used element
         // find the node that has the least value on the dictionary
