@@ -22,7 +22,7 @@ public class MultiPreferencePathPlannerARSC {
         long startNodeId = start.getId();
         long destinationNodeId = destination.getId();
 
-        DiskManager diskManager = new DiskManager(0); //0.00001f
+        DiskManager diskManager = new DiskManager(500); //0.00001f
         LocalRouteSkylineManager localRouteSkylinesManager = new LocalRouteSkylineManager(diskManager);
         PerformanceReporter performanceReporter = new PerformanceReporter();
 

@@ -1,5 +1,7 @@
 package project.CacheManagers;
 
+import scala.Int;
+
 import java.util.Map;
 
 public class FIFOCacheManager extends CacheManager {
@@ -20,10 +22,8 @@ public class FIFOCacheManager extends CacheManager {
 
     @Override
     public Long peek() {
-        // TODO: compute the lowest index and get the value
-
         long leastRecentlyUsedElement = -1;
-        int theLeastIndex = index;
+        int theLeastIndex = Integer.MAX_VALUE;
         for(Map.Entry<Long, Integer> entry: elements.entrySet()){
             if (entry.getValue() < theLeastIndex) {
                 theLeastIndex = entry.getValue();

@@ -9,7 +9,7 @@ public class LRUCacheManager extends CacheManager {
     public String name() {
         return NAME;
     }
-    
+
     @Override
     public void push(long element) {
         incrementIndexByOne();
@@ -17,13 +17,9 @@ public class LRUCacheManager extends CacheManager {
     }
 
     public Long peek() {
-
-        // TODO: compute the least recently used element
-        // find the node that has the least value on the dictionary
-
         long leastRecentlyUsedElement = -1;
         int theLeastIndex = Integer.MAX_VALUE;
-        for(Map.Entry<Long, Integer> entry: elements.entrySet()){
+        for (Map.Entry<Long, Integer> entry : elements.entrySet()) {
             if (entry.getValue() < theLeastIndex) {
                 theLeastIndex = entry.getValue();
                 leastRecentlyUsedElement = entry.getKey();

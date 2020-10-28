@@ -16,10 +16,6 @@ public class MRUCacheManager extends CacheManager {
     }
 
     public Long peek() {
-
-        // TODO: compute the most recently used element
-        // find the node that has the biggest value on the dictionary
-
         long mostRecentlyUsedElement = -1;
         int theBiggestIndex = Integer.MIN_VALUE;
         for (Map.Entry<Long, Integer> entry : elements.entrySet()) {

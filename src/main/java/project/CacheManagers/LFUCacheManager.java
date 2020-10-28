@@ -12,30 +12,31 @@ public class LFUCacheManager extends CacheManager {
 
     @Override
     public void push(long element) {
-        incrementIndexByOne();
-        elements.put(element, index);
+        //incrementIndexByOne();
+        if (elements.containsKey(element)) {
+            int newFrequency = elements.get(element) + 1;
+            elements.put(element, newFrequency);
+        } else {
+            elements.put(element, 0);
+        }
     }
 
     public Long peek() {
-
-        // TODO: compute the least recently used element
-        // find the node that has the least value on the dictionary
-
-        long leastRecentlyUsedElement = -1;
-        int theLeastIndex = index;
-        for(Map.Entry<Long, Integer> entry: elements.entrySet()){
-            if (entry.getValue() < theLeastIndex) {
-                theLeastIndex = entry.getValue();
-                leastRecentlyUsedElement = entry.getKey();
+        long leastFrequentlyUsedElement = -1;
+        int theLeastFrequency = Integer.MAX_VALUE;
+        for (Map.Entry<Long, Integer> entry : elements.entrySet()) {
+            if (entry.getValue() < theLeastFrequency) {
+                theLeastFrequency = entry.getValue();
+                leastFrequentlyUsedElement = entry.getKey();
             }
         }
 
-        if (leastRecentlyUsedElement < 0) {
+        if (leastFrequentlyUsedElement < 0) {
             return null;
         }
 
-        elements.remove(leastRecentlyUsedElement);
+        elements.remove(leastFrequentlyUsedElement);
 
-        return leastRecentlyUsedElement;
+        return leastFrequentlyUsedElement;
     }
 }
